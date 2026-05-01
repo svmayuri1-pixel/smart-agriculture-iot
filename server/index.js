@@ -28,11 +28,25 @@ app.use('/api/alerts', require('./routes/alerts'));
 app.use('/api/weather', require('./routes/weather'));
 app.use('/api/cameras', require('./routes/cameras'));
 
-// Serve static frontend
-app.use(express.static(path.join(__dirname, '../client/build')));
-app.get('*', (req, res) => {
-  res.sendFile(path.join(__dirname, '../client/build/index.html'));
-});
+// Serve static frontend — only if build exists
+const buildPath = path.join(__dirname, '../client/build');
+const fs = require('fs');
+if (fs.existsSync(buildPath)) {
+  app.use(express.static(buildPath));
+  app.get('*', (req, res) => {
+    res.sendFile(path.join(buildPath, 'index.html'));
+  });
+  console.log('✅ Serving React frontend from build folder');
+} else {
+  app.get('*', (req, res) => {
+    res.json({ 
+      status: 'API Running', 
+      message: 'Frontend build not found. Run: npm run build --prefix client',
+      api: '/api/auth, /api/sensors, /api/livestock'
+    });
+  });
+  console.log('⚠️ No client/build folder found — API only mode');
+}
 
 // Socket.IO for real-time data
 require('./mqtt/mqttClient')(io);
