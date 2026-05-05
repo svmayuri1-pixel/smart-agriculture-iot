@@ -20,6 +20,8 @@ const liveData = {
   cameras:   {},   // keyed by camera ID
 };
 
+const { updateRealData, updateRealVehicle, updateRealLivestock, updateRealCamera } = require('../utils/simulator');
+
 module.exports = function (io) {
   try {
     const mqtt = require('mqtt');
@@ -60,8 +62,10 @@ module.exports = function (io) {
             lightIntensity: data.lightIntensity || null,
             lastUpdated:   new Date().toISOString(),
           };
+          // ✅ Update real data store
+          updateRealData('field', liveData.field);
           io.emit('field_update', liveData.field);
-          console.log(`🌱 Field update: moisture=${data.soilMoisture}% humidity=${data.humidity}%`);
+          console.log(`🌱 REAL Field: moisture=${data.soilMoisture}% humidity=${data.humidity}% temp=${data.temperature}°C`);
         }
 
         // ── Livestock GPS collars ──────────────────────────────────────
