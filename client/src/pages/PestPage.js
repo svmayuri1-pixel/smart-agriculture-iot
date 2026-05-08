@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useSensor } from '../context/SensorContext';
 import axios from 'axios';
 
@@ -16,73 +16,124 @@ const pestInfo = {
   None:        { icon: '✅', color: '#16a34a', treatment: 'No treatment needed. Continue monitoring.', severity: 'None' },
 };
 
-// Camera feed component — shows real ESP32-CAM stream or offline placeholder
-function CameraFeed({ camera }) {
-  const [imgError, setImgError] = useState(false);
-  const isOnline = camera.status === 'online' && camera.streamUrl && !imgError;
+// Camera feed — supports direct ESP32-CAM URL
+function CameraFeed({ camera, onUrlChange }) {
+  const [imgError, setImgError]   = useState(false);
+  const [editing, setEditing]     = useState(false);
+  const [inputUrl, setInputUrl]   = useState(camera.streamUrl || '');
+  const imgRef = useRef(null);
 
-  // Proxy the stream through our server to avoid CORS/mixed-content issues
-  const proxyUrl = camera.streamUrl
-    ? `/api/cameras/proxy-stream?url=${encodeURIComponent(camera.streamUrl)}`
-    : null;
+  // Direct stream URL (no proxy needed when on same network)
+  const streamUrl = camera.streamUrl || null;
+  const isOnline  = streamUrl && !imgError;
+
+  const handleSave = () => {
+    onUrlChange(camera.id, inputUrl.trim());
+    setEditing(false);
+    setImgError(false);
+  };
 
   return (
     <div style={{
-      borderRadius: '10px', overflow: 'hidden', border: '1px solid #334155',
-      background: '#0f172a', position: 'relative'
+      borderRadius: '10px', overflow: 'hidden',
+      border: `1px solid ${isOnline ? '#16a34a44' : '#334155'}`,
+      background: '#0f172a'
     }}>
-      {/* Header bar */}
+      {/* Header */}
       <div style={{
-        padding: '8px 12px', background: '#1e293b', display: 'flex',
-        alignItems: 'center', justifyContent: 'space-between'
+        padding: '8px 12px', background: '#1e293b',
+        display: 'flex', alignItems: 'center', justifyContent: 'space-between'
       }}>
         <span style={{ color: '#94a3b8', fontSize: '0.78rem', fontWeight: 600 }}>
           📷 {camera.label || camera.id}
         </span>
-        <span style={{
-          padding: '2px 7px', borderRadius: '20px', fontSize: '0.68rem', fontWeight: 700,
-          background: isOnline ? 'rgba(22,163,74,0.15)' : 'rgba(100,116,139,0.15)',
-          color: isOnline ? '#4ade80' : '#64748b'
-        }}>
-          {isOnline ? '● LIVE' : '○ OFFLINE'}
-        </span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+          <span style={{
+            padding: '2px 7px', borderRadius: '20px', fontSize: '0.68rem', fontWeight: 700,
+            background: isOnline ? 'rgba(22,163,74,0.15)' : 'rgba(100,116,139,0.15)',
+            color: isOnline ? '#4ade80' : '#64748b'
+          }}>{isOnline ? '● LIVE' : '○ OFFLINE'}</span>
+          <button onClick={() => setEditing(!editing)} style={{
+            background: 'rgba(59,130,246,0.15)', border: '1px solid rgba(59,130,246,0.3)',
+            borderRadius: '4px', color: '#60a5fa', fontSize: '0.65rem',
+            padding: '2px 6px', cursor: 'pointer'
+          }}>⚙️ URL</button>
+        </div>
       </div>
 
-      {/* Stream or placeholder */}
-      <div style={{ height: '180px', position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+      {/* URL Input */}
+      {editing && (
+        <div style={{ padding: '8px', background: '#0f172a', borderBottom: '1px solid #334155' }}>
+          <input
+            value={inputUrl}
+            onChange={e => setInputUrl(e.target.value)}
+            placeholder="http://192.168.x.x/stream"
+            style={{
+              width: '100%', padding: '6px 8px', background: '#1e293b',
+              border: '1px solid #334155', borderRadius: '6px', color: '#e2e8f0',
+              fontSize: '0.75rem', outline: 'none', boxSizing: 'border-box', marginBottom: '6px'
+            }}
+          />
+          <div style={{ display: 'flex', gap: '6px' }}>
+            <button onClick={handleSave} style={{
+              flex: 1, padding: '5px', background: 'rgba(22,163,74,0.2)',
+              border: '1px solid rgba(22,163,74,0.4)', borderRadius: '5px',
+              color: '#4ade80', fontSize: '0.75rem', cursor: 'pointer', fontWeight: 600
+            }}>✅ Save</button>
+            <button onClick={() => setEditing(false)} style={{
+              flex: 1, padding: '5px', background: 'rgba(100,116,139,0.2)',
+              border: '1px solid #334155', borderRadius: '5px',
+              color: '#94a3b8', fontSize: '0.75rem', cursor: 'pointer'
+            }}>Cancel</button>
+          </div>
+        </div>
+      )}
+
+      {/* Stream */}
+      <div style={{
+        height: '180px', position: 'relative',
+        display: 'flex', alignItems: 'center', justifyContent: 'center'
+      }}>
         {isOnline ? (
-          // Real MJPEG stream from ESP32-CAM
           <img
-            src={proxyUrl}
-            alt={`Camera ${camera.id}`}
-            style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+            ref={imgRef}
+            src={streamUrl}
+            alt={camera.id}
+            style={{ width: '100%', height: '100%', objectFit: 'cover' }}
             onError={() => setImgError(true)}
           />
         ) : (
-          // Offline placeholder
-          <div style={{ textAlign: 'center', color: '#334155' }}>
-            <div style={{ fontSize: '2.5rem', marginBottom: '8px' }}>📷</div>
-            <div style={{ fontSize: '0.75rem' }}>
-              {camera.streamUrl ? 'Stream unavailable' : 'No camera connected'}
+          <div style={{ textAlign: 'center', color: '#475569', padding: '10px' }}>
+            <div style={{ fontSize: '2rem', marginBottom: '6px' }}>📷</div>
+            <div style={{ fontSize: '0.72rem', marginBottom: '4px' }}>
+              {streamUrl ? '⚠️ Cannot reach camera' : 'No URL set'}
             </div>
-            {camera.streamUrl && (
-              <div style={{ fontSize: '0.65rem', marginTop: '4px', color: '#475569' }}>
-                {camera.streamUrl}
-              </div>
-            )}
+            <div style={{ fontSize: '0.65rem', color: '#334155' }}>
+              Click ⚙️ URL to set ESP32-CAM stream address
+            </div>
           </div>
         )}
-
-        {/* Live indicator pulse */}
         {isOnline && (
           <div style={{
             position: 'absolute', top: '8px', right: '8px',
             width: '8px', height: '8px', borderRadius: '50%',
-            background: '#16a34a', boxShadow: '0 0 8px #16a34a',
-            animation: 'pulse 2s infinite'
+            background: '#16a34a', boxShadow: '0 0 8px #16a34a'
           }} />
         )}
       </div>
+
+      {/* URL display */}
+      {streamUrl && !editing && (
+        <div style={{
+          padding: '5px 10px', background: '#0a1628',
+          borderTop: '1px solid #1e293b'
+        }}>
+          <a href={streamUrl} target="_blank" rel="noreferrer" style={{
+            color: '#3b82f6', fontSize: '0.65rem', textDecoration: 'none',
+            wordBreak: 'break-all'
+          }}>{streamUrl}</a>
+        </div>
+      )}
     </div>
   );
 }
@@ -92,21 +143,41 @@ export default function PestPage() {
   const pest = sensorData.pest;
   const info = pestInfo[pest.type] || pestInfo['None'];
   const [sprayActive, setSprayActive] = useState(pest.sprayActive);
-  const [cameras, setCameras] = useState([]);
+  const [cameras, setCameras]         = useState([]);
+  const [globalUrl, setGlobalUrl]     = useState('');
+  const [showUrlInput, setShowUrlInput] = useState(false);
 
-  // Load camera list from server
+  // Load cameras
   useEffect(() => {
     axios.get('/api/cameras')
       .then(res => setCameras(res.data))
       .catch(() => {
-        // Fallback demo cameras
         setCameras([
-          { id: 'CAM-NORTH-01', status: 'offline', streamUrl: null, label: 'North Field' },
-          { id: 'CAM-SOUTH-01', status: 'offline', streamUrl: null, label: 'South Field' },
-          { id: 'CAM-BARN-01',  status: 'offline', streamUrl: null, label: 'Barn / Livestock' },
+          { id: 'CAM-FIELD-01', status: 'offline', streamUrl: null, label: 'Field Camera 1' },
+          { id: 'CAM-FIELD-02', status: 'offline', streamUrl: null, label: 'Field Camera 2' },
+          { id: 'CAM-BARN-01',  status: 'offline', streamUrl: null, label: 'Barn Camera' },
         ]);
       });
   }, []);
+
+  // Update individual camera URL
+  const handleUrlChange = (id, url) => {
+    setCameras(prev => prev.map(c =>
+      c.id === id ? { ...c, streamUrl: url, status: url ? 'online' : 'offline' } : c
+    ));
+  };
+
+  // Apply one URL to all cameras (quick setup)
+  const applyGlobalUrl = () => {
+    if (!globalUrl.trim()) return;
+    setCameras(prev => prev.map((c, i) => ({
+      ...c,
+      streamUrl: i === 0 ? globalUrl.trim() : c.streamUrl,
+      status: i === 0 ? 'online' : c.status
+    })));
+    setShowUrlInput(false);
+    setGlobalUrl('');
+  };
 
   return (
     <div className="fade-in">
@@ -210,32 +281,69 @@ export default function PestPage() {
       <div style={{ background: '#1e293b', border: '1px solid #334155', borderRadius: '12px', padding: '20px', marginBottom: '20px' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
           <h3 style={{ color: '#e2e8f0', fontSize: '0.95rem', fontWeight: 600 }}>📷 Live Camera Feeds (ESP32-CAM)</h3>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <span style={{ color: '#64748b', fontSize: '0.75rem' }}>
-              {cameras.filter(c => c.status === 'online').length}/{cameras.length} online
-            </span>
-          </div>
+          <button onClick={() => setShowUrlInput(!showUrlInput)} style={{
+            padding: '6px 12px', background: 'rgba(59,130,246,0.15)',
+            border: '1px solid rgba(59,130,246,0.3)', borderRadius: '8px',
+            color: '#60a5fa', fontSize: '0.78rem', cursor: 'pointer', fontWeight: 600
+          }}>
+            ➕ Add Camera URL
+          </button>
         </div>
+
+        {/* Quick URL input */}
+        {showUrlInput && (
+          <div style={{
+            padding: '14px', background: '#0f172a', borderRadius: '10px',
+            border: '1px solid #334155', marginBottom: '16px'
+          }}>
+            <p style={{ color: '#94a3b8', fontSize: '0.8rem', marginBottom: '10px', fontWeight: 600 }}>
+              📡 Enter your ESP32-CAM Stream URL
+            </p>
+            <p style={{ color: '#64748b', fontSize: '0.75rem', marginBottom: '10px' }}>
+              Serial Monitor-ல வந்த IP address போடுங்க:<br/>
+              Example: <code style={{ color: '#60a5fa' }}>http://192.168.x.x/stream</code>
+            </p>
+            <div style={{ display: 'flex', gap: '8px' }}>
+              <input
+                value={globalUrl}
+                onChange={e => setGlobalUrl(e.target.value)}
+                placeholder="http://192.168.1.55/stream"
+                style={{
+                  flex: 1, padding: '8px 12px', background: '#1e293b',
+                  border: '1px solid #334155', borderRadius: '8px',
+                  color: '#e2e8f0', fontSize: '0.85rem', outline: 'none'
+                }}
+                onFocus={e => e.target.style.borderColor = '#3b82f6'}
+                onBlur={e => e.target.style.borderColor = '#334155'}
+              />
+              <button onClick={applyGlobalUrl} style={{
+                padding: '8px 16px', background: '#16a34a', border: 'none',
+                borderRadius: '8px', color: '#fff', fontSize: '0.85rem',
+                cursor: 'pointer', fontWeight: 600
+              }}>✅ Connect</button>
+            </div>
+          </div>
+        )}
 
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '12px' }}>
           {cameras.map(cam => (
-            <CameraFeed key={cam.id} camera={cam} />
+            <CameraFeed key={cam.id} camera={cam} onUrlChange={handleUrlChange} />
           ))}
         </div>
 
-        {/* Connection instructions */}
+        {/* Info box */}
         <div style={{
           marginTop: '14px', padding: '12px 14px', background: 'rgba(59,130,246,0.06)',
           border: '1px solid rgba(59,130,246,0.15)', borderRadius: '8px'
         }}>
-          <p style={{ color: '#64748b', fontSize: '0.75rem', fontWeight: 600, marginBottom: '4px' }}>
-            🔌 HOW TO CONNECT YOUR ESP32-CAM
+          <p style={{ color: '#64748b', fontSize: '0.75rem', fontWeight: 600, marginBottom: '6px' }}>
+            🔌 HOW TO VIEW YOUR ESP32-CAM
           </p>
-          <p style={{ color: '#475569', fontSize: '0.75rem', lineHeight: 1.6 }}>
-            1. Flash <code style={{ color: '#60a5fa' }}>hardware/esp32_cam_pest/esp32_cam_pest.ino</code> to your ESP32-CAM<br/>
-            2. Set your WiFi credentials and MQTT broker in the sketch<br/>
-            3. Power on — the camera will auto-register via MQTT and appear here as LIVE<br/>
-            4. Stream URL format: <code style={{ color: '#60a5fa' }}>http://&lt;ESP32_IP&gt;/stream</code>
+          <p style={{ color: '#475569', fontSize: '0.75rem', lineHeight: 1.7 }}>
+            1. ESP32-CAM power on பண்ணுங்க → Serial Monitor-ல IP address வரும்<br/>
+            2. <strong style={{ color: '#94a3b8' }}>Example:</strong> <code style={{ color: '#60a5fa' }}>http://192.168.1.55/stream</code><br/>
+            3. Above "➕ Add Camera URL" click பண்ணி URL paste பண்ணுங்க<br/>
+            4. ESP32-CAM-உம் உங்க device-உம் <strong style={{ color: '#94a3b8' }}>same WiFi</strong>-ல இருக்கணும்!
           </p>
         </div>
       </div>
