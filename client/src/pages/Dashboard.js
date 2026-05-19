@@ -64,15 +64,26 @@ export default function Dashboard() {
   const { user } = useAuth();
   const navigate = useNavigate();
   const [controls, setControls] = React.useState({ irrigation: true, pestSpray: false });
+  const [autoIrrigation, setAutoIrrigation] = React.useState(true);
+  const [irrigationThresholdLow, setIrrigationThresholdLow]   = React.useState(30);
+  const [irrigationThresholdHigh, setIrrigationThresholdHigh] = React.useState(70);
 
   const toggle = key => setControls(c => ({ ...c, [key]: !c[key] }));
   const d = sensorData;
+
+  // Auto irrigation logic
+  const soilMoisture = d.field.soilMoisture;
+  const autoIrrigationOn  = autoIrrigation && soilMoisture < irrigationThresholdLow;
+  const autoIrrigationOff = autoIrrigation && soilMoisture > irrigationThresholdHigh;
+  const irrigationActive  = autoIrrigation
+    ? autoIrrigationOn
+    : controls.irrigation;
 
   const alertCount = [
     d.pest.detected,
     d.intrusion.detected,
     d.livestock.some(l => l.status === 'Alert'),
-    d.field.soilMoisture < 30
+    soilMoisture < irrigationThresholdLow
   ].filter(Boolean).length;
 
   return (
@@ -129,9 +140,79 @@ export default function Dashboard() {
         {/* Quick Controls */}
         <div style={{ background: '#1e293b', border: '1px solid #334155', borderRadius: '12px', padding: '20px' }}>
           <h3 style={{ color: '#e2e8f0', fontSize: '0.95rem', fontWeight: 600, marginBottom: '16px' }}>⚙️ Quick Controls</h3>
+
+          {/* Auto Irrigation Toggle */}
+          <div style={{
+            padding: '14px', background: autoIrrigation ? 'rgba(22,163,74,0.08)' : '#0f172a',
+            border: `1px solid ${autoIrrigation ? '#16a34a44' : '#334155'}`,
+            borderRadius: '10px', marginBottom: '10px'
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: autoIrrigation ? '12px' : '0' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <span style={{ fontSize: '1.2rem' }}>🤖</span>
+                <div>
+                  <div style={{ color: '#e2e8f0', fontSize: '0.85rem', fontWeight: 600 }}>Auto Irrigation</div>
+                  <div style={{ color: '#64748b', fontSize: '0.7rem' }}>
+                    {autoIrrigation
+                      ? irrigationActive ? '💧 Irrigating now' : '✅ Monitoring'
+                      : 'Manual mode'}
+                  </div>
+                </div>
+              </div>
+              <div onClick={() => setAutoIrrigation(!autoIrrigation)} style={{
+                width: '40px', height: '22px', borderRadius: '11px', cursor: 'pointer',
+                background: autoIrrigation ? '#16a34a' : '#334155', position: 'relative', transition: 'background 0.3s'
+              }}>
+                <div style={{
+                  position: 'absolute', top: '3px', left: autoIrrigation ? '21px' : '3px',
+                  width: '16px', height: '16px', borderRadius: '50%', background: '#fff', transition: 'left 0.3s'
+                }} />
+              </div>
+            </div>
+
+            {/* Threshold sliders */}
+            {autoIrrigation && (
+              <div style={{ borderTop: '1px solid #334155', paddingTop: '10px' }}>
+                <div style={{ marginBottom: '8px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
+                    <span style={{ color: '#64748b', fontSize: '0.72rem' }}>💧 ON below</span>
+                    <span style={{ color: '#3b82f6', fontSize: '0.72rem', fontWeight: 700 }}>{irrigationThresholdLow}%</span>
+                  </div>
+                  <input type="range" min="10" max="50" value={irrigationThresholdLow}
+                    onChange={e => setIrrigationThresholdLow(Number(e.target.value))}
+                    style={{ width: '100%', accentColor: '#3b82f6' }} />
+                </div>
+                <div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
+                    <span style={{ color: '#64748b', fontSize: '0.72rem' }}>⏹ OFF above</span>
+                    <span style={{ color: '#16a34a', fontSize: '0.72rem', fontWeight: 700 }}>{irrigationThresholdHigh}%</span>
+                  </div>
+                  <input type="range" min="50" max="90" value={irrigationThresholdHigh}
+                    onChange={e => setIrrigationThresholdHigh(Number(e.target.value))}
+                    style={{ width: '100%', accentColor: '#16a34a' }} />
+                </div>
+
+                {/* Status indicator */}
+                <div style={{
+                  marginTop: '10px', padding: '8px 10px', borderRadius: '6px', textAlign: 'center',
+                  background: irrigationActive ? 'rgba(22,163,74,0.15)' : 'rgba(100,116,139,0.1)',
+                  border: `1px solid ${irrigationActive ? '#16a34a44' : '#334155'}`
+                }}>
+                  <span style={{ fontSize: '0.78rem', fontWeight: 700, color: irrigationActive ? '#4ade80' : '#64748b' }}>
+                    {irrigationActive
+                      ? `💧 Irrigation ON — Soil ${soilMoisture}% < ${irrigationThresholdLow}%`
+                      : `⏸ Irrigation OFF — Soil ${soilMoisture}%`}
+                  </span>
+                </div>
+              </div>
+            )}
+          </div>
+
           <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-            <QuickControl icon="💧" label="Auto Irrigation"  active={controls.irrigation}  onToggle={() => toggle('irrigation')} />
-            <QuickControl icon="🐛" label="Pest Spray"       active={controls.pestSpray}   onToggle={() => toggle('pestSpray')} />
+            {!autoIrrigation && (
+              <QuickControl icon="💧" label="Manual Irrigation" active={controls.irrigation} onToggle={() => toggle('irrigation')} />
+            )}
+            <QuickControl icon="🐛" label="Pest Spray" active={controls.pestSpray} onToggle={() => toggle('pestSpray')} />
           </div>
 
           {/* Irrigation zones */}
@@ -142,10 +223,10 @@ export default function Dashboard() {
                 <span style={{ color: '#94a3b8', fontSize: '0.8rem' }}>{zone}</span>
                 <span style={{
                   padding: '2px 8px', borderRadius: '20px', fontSize: '0.7rem', fontWeight: 600,
-                  background: [d.irrigation.zone1, d.irrigation.zone2, d.irrigation.zone3][i] ? 'rgba(22,163,74,0.15)' : 'rgba(100,116,139,0.15)',
-                  color: [d.irrigation.zone1, d.irrigation.zone2, d.irrigation.zone3][i] ? '#4ade80' : '#64748b'
+                  background: irrigationActive ? 'rgba(22,163,74,0.15)' : 'rgba(100,116,139,0.15)',
+                  color: irrigationActive ? '#4ade80' : '#64748b'
                 }}>
-                  {[d.irrigation.zone1, d.irrigation.zone2, d.irrigation.zone3][i] ? 'ON' : 'OFF'}
+                  {irrigationActive ? '💧 ON' : 'OFF'}
                 </span>
               </div>
             ))}
