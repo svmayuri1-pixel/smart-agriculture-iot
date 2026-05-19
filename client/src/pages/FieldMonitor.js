@@ -26,20 +26,6 @@ function GaugeCard({ label, value, max, unit, color, icon, description }) {
   );
 }
 
-function SoilNutrient({ label, value, max, color }) {
-  return (
-    <div style={{ marginBottom: '12px' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '5px' }}>
-        <span style={{ color: '#94a3b8', fontSize: '0.82rem' }}>{label}</span>
-        <span style={{ color: '#e2e8f0', fontSize: '0.82rem', fontWeight: 600 }}>{value} mg/kg</span>
-      </div>
-      <div style={{ height: '8px', background: '#0f172a', borderRadius: '4px', overflow: 'hidden' }}>
-        <div style={{ height: '100%', width: `${(value / max) * 100}%`, background: color, borderRadius: '4px', transition: 'width 0.5s' }} />
-      </div>
-    </div>
-  );
-}
-
 export default function FieldMonitor() {
   const { sensorData, history } = useSensor();
   const f = sensorData.field;
@@ -63,8 +49,8 @@ export default function FieldMonitor() {
           description={f.ph < 6 ? 'Acidic' : f.ph > 7.5 ? 'Alkaline' : '✓ Neutral'} />
       </div>
 
-      {/* Chart + Nutrients */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 300px', gap: '20px', marginBottom: '24px' }}>
+      {/* Chart — full width */}
+      <div style={{ marginBottom: '24px' }}>
         <div style={{ background: '#1e293b', border: '1px solid #334155', borderRadius: '12px', padding: '20px' }}>
           <h3 style={{ color: '#e2e8f0', fontSize: '0.95rem', fontWeight: 600, marginBottom: '16px' }}>📊 Sensor History</h3>
           <ResponsiveContainer width="100%" height={240}>
@@ -87,23 +73,6 @@ export default function FieldMonitor() {
               <Area type="monotone" dataKey="humidity"     stroke="#06b6d4" fill="url(#hum)" strokeWidth={2} name="Humidity %" />
             </AreaChart>
           </ResponsiveContainer>
-        </div>
-
-        <div style={{ background: '#1e293b', border: '1px solid #334155', borderRadius: '12px', padding: '20px' }}>
-          <h3 style={{ color: '#e2e8f0', fontSize: '0.95rem', fontWeight: 600, marginBottom: '16px' }}>🧪 Soil Nutrients</h3>
-          <SoilNutrient label="Nitrogen (N)"   value={f.nitrogen}   max={80} color="#16a34a" />
-          <SoilNutrient label="Phosphorus (P)" value={f.phosphorus} max={60} color="#3b82f6" />
-          <SoilNutrient label="Potassium (K)"  value={f.potassium}  max={70} color="#f59e0b" />
-
-          <div style={{ marginTop: '16px', padding: '12px', background: '#0f172a', borderRadius: '8px' }}>
-            <p style={{ color: '#64748b', fontSize: '0.75rem', fontWeight: 600, marginBottom: '8px' }}>💡 RECOMMENDATION</p>
-            <p style={{ color: '#94a3b8', fontSize: '0.8rem', lineHeight: 1.5 }}>
-              {f.nitrogen < 20 ? '⚠️ Low nitrogen — apply urea fertilizer' :
-               f.phosphorus < 10 ? '⚠️ Low phosphorus — apply DAP' :
-               f.soilMoisture < 30 ? '💧 Soil dry — activate irrigation' :
-               '✅ Soil conditions are optimal for crop growth'}
-            </p>
-          </div>
         </div>
       </div>
 
