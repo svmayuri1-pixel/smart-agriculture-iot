@@ -67,12 +67,17 @@ export default function Dashboard() {
   const [autoIrrigation, setAutoIrrigation] = React.useState(true);
   const [irrigationThresholdLow, setIrrigationThresholdLow]   = React.useState(30);
   const [irrigationThresholdHigh, setIrrigationThresholdHigh] = React.useState(70);
+  const [manualSoilMoisture, setManualSoilMoisture] = React.useState(null);
 
   const toggle = key => setControls(c => ({ ...c, [key]: !c[key] }));
   const d = sensorData;
 
+  // Use real sensor data if available, else manual slider
+  const soilMoisture = manualSoilMoisture !== null
+    ? manualSoilMoisture
+    : d.field.soilMoisture;
+
   // Auto irrigation logic
-  const soilMoisture = d.field.soilMoisture;
   const autoIrrigationOn  = autoIrrigation && soilMoisture < irrigationThresholdLow;
   const autoIrrigationOff = autoIrrigation && soilMoisture > irrigationThresholdHigh;
   const irrigationActive  = autoIrrigation
@@ -101,8 +106,8 @@ export default function Dashboard() {
 
       {/* Stats Grid */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: '14px', marginBottom: '24px' }}>
-        <StatCard icon="💧" label="Soil Moisture" value={d.field.soilMoisture} unit="%" color="#3b82f6"
-          status={d.field.soilMoisture < 30 ? 'Low' : d.field.soilMoisture > 70 ? 'High' : 'Good'}
+        <StatCard icon="💧" label="Soil Moisture" value={soilMoisture} unit="%" color="#3b82f6"
+          status={soilMoisture < irrigationThresholdLow ? 'Low' : soilMoisture > irrigationThresholdHigh ? 'High' : 'Good'}
           onClick={() => navigate('/field')} />
         <StatCard icon="💦" label="Humidity" value={d.field.humidity} unit="%" color="#06b6d4"
           status="Normal" onClick={() => navigate('/field')} />
@@ -190,6 +195,37 @@ export default function Dashboard() {
                   <input type="range" min="50" max="90" value={irrigationThresholdHigh}
                     onChange={e => setIrrigationThresholdHigh(Number(e.target.value))}
                     style={{ width: '100%', accentColor: '#16a34a' }} />
+                </div>
+
+                {/* Demo soil moisture slider */}
+                <div style={{ marginTop: '10px', padding: '10px', background: '#0f172a', borderRadius: '8px', border: '1px solid #334155' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
+                    <span style={{ color: '#64748b', fontSize: '0.72rem', fontWeight: 600 }}>
+                      🌱 DEMO: Soil Moisture
+                    </span>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <span style={{ color: '#3b82f6', fontSize: '0.72rem', fontWeight: 700 }}>{soilMoisture}%</span>
+                      {manualSoilMoisture !== null && (
+                        <button onClick={() => setManualSoilMoisture(null)} style={{
+                          background: 'rgba(100,116,139,0.2)', border: 'none', borderRadius: '4px',
+                          color: '#64748b', fontSize: '0.65rem', padding: '1px 5px', cursor: 'pointer'
+                        }}>Reset</button>
+                      )}
+                    </div>
+                  </div>
+                  <input
+                    type="range" min="0" max="100"
+                    value={soilMoisture}
+                    onChange={e => setManualSoilMoisture(Number(e.target.value))}
+                    style={{ width: '100%', accentColor: '#3b82f6' }}
+                  />
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '2px' }}>
+                    <span style={{ color: '#ef4444', fontSize: '0.65rem' }}>0% Dry</span>
+                    <span style={{ color: '#16a34a', fontSize: '0.65rem' }}>100% Wet</span>
+                  </div>
+                  <div style={{ color: '#475569', fontSize: '0.65rem', marginTop: '4px', textAlign: 'center' }}>
+                    Drag slider to simulate soil moisture
+                  </div>
                 </div>
 
                 {/* Status indicator */}
