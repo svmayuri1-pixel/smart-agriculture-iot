@@ -25,10 +25,6 @@ export default function LoginPage() {
     }
   };
 
-  const fillDemo = (role) => {
-    if (role === 'admin') setForm({ email: 'admin@smartfarm.com', password: 'farm1234' });
-    else setForm({ email: 'john@smartfarm.com', password: 'john1234' });
-  };
 
   return (
     <div style={{
@@ -136,20 +132,7 @@ export default function LoginPage() {
             </button>
           </form>
 
-          {/* Demo credentials */}
-          <div style={{ marginTop: '20px', padding: '14px', background: 'rgba(22,163,74,0.06)', border: '1px solid rgba(22,163,74,0.15)', borderRadius: '8px' }}>
-            <p style={{ color: '#64748b', fontSize: '0.75rem', marginBottom: '8px', fontWeight: 600 }}>DEMO ACCOUNTS</p>
-            <div style={{ display: 'flex', gap: '8px' }}>
-              <button onClick={() => fillDemo('admin')} style={{
-                flex: 1, padding: '6px', background: 'rgba(22,163,74,0.1)', border: '1px solid rgba(22,163,74,0.2)',
-                borderRadius: '6px', color: '#4ade80', fontSize: '0.75rem', cursor: 'pointer'
-              }}>👑 Admin</button>
-              <button onClick={() => fillDemo('farmer')} style={{
-                flex: 1, padding: '6px', background: 'rgba(59,130,246,0.1)', border: '1px solid rgba(59,130,246,0.2)',
-                borderRadius: '6px', color: '#60a5fa', fontSize: '0.75rem', cursor: 'pointer'
-              }}>🌾 Farmer</button>
-            </div>
-          </div>
+
 
           <p style={{ textAlign: 'center', marginTop: '20px', color: '#64748b', fontSize: '0.85rem' }}>
             New to SmartFarm?{' '}
