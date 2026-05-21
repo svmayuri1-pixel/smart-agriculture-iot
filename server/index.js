@@ -27,6 +27,7 @@ app.use('/api/inventory', require('./routes/inventory'));
 app.use('/api/alerts', require('./routes/alerts'));
 app.use('/api/weather', require('./routes/weather'));
 app.use('/api/cameras', require('./routes/cameras'));
+app.use('/api/pest', require('./routes/pestAnalysis'));
 
 // Serve static frontend — only if build exists
 const buildPath = path.join(__dirname, '../client/build');

@@ -16,16 +16,98 @@ const pestInfo = {
   None:        { icon: '✅', color: '#16a34a', treatment: 'No treatment needed. Continue monitoring.', severity: 'None' },
 };
 
-// Camera feed — supports direct ESP32-CAM URL
+const severityColor = {
+  None: '#16a34a', Low: '#22c55e', Medium: '#f59e0b',
+  High: '#ef4444', Critical: '#dc2626'
+};
+
+// AI Analysis Result Card
+function AIResultCard({ result, onClose }) {
+  if (!result) return null;
+  const color = severityColor[result.severity] || '#64748b';
+  return (
+    <div style={{
+      position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)',
+      display: 'flex', alignItems: 'center', justifyContent: 'center',
+      zIndex: 1000, padding: '20px'
+    }}>
+      <div style={{
+        background: '#1e293b', border: `1px solid ${color}44`,
+        borderRadius: '16px', padding: '24px', maxWidth: '500px', width: '100%',
+        boxShadow: `0 0 40px ${color}22`
+      }}>
+        {/* Header */}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <span style={{ fontSize: '2rem' }}>{result.pestDetected ? '🐛' : '✅'}</span>
+            <div>
+              <div style={{ color: '#f1f5f9', fontSize: '1.1rem', fontWeight: 700 }}>
+                {result.pestDetected ? result.pestName : 'No Pest Detected'}
+              </div>
+              <div style={{ color: '#64748b', fontSize: '0.78rem' }}>Gemini AI Analysis</div>
+            </div>
+          </div>
+          <button onClick={onClose} style={{
+            background: 'rgba(100,116,139,0.2)', border: 'none', borderRadius: '6px',
+            color: '#94a3b8', fontSize: '1rem', padding: '4px 8px', cursor: 'pointer'
+          }}>✕</button>
+        </div>
+
+        {/* Confidence bar */}
+        <div style={{ marginBottom: '14px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '5px' }}>
+            <span style={{ color: '#64748b', fontSize: '0.78rem' }}>Confidence</span>
+            <span style={{ color: color, fontSize: '0.78rem', fontWeight: 700 }}>{result.confidence}%</span>
+          </div>
+          <div style={{ height: '6px', background: '#0f172a', borderRadius: '3px' }}>
+            <div style={{ height: '100%', width: `${result.confidence}%`, background: color, borderRadius: '3px' }} />
+          </div>
+        </div>
+
+        {/* Severity */}
+        <div style={{ display: 'flex', gap: '8px', marginBottom: '14px' }}>
+          <span style={{
+            padding: '3px 10px', borderRadius: '20px', fontSize: '0.75rem', fontWeight: 700,
+            background: `${color}22`, color
+          }}>Severity: {result.severity}</span>
+        </div>
+
+        {/* Description */}
+        <div style={{ padding: '10px', background: '#0f172a', borderRadius: '8px', marginBottom: '10px' }}>
+          <div style={{ color: '#64748b', fontSize: '0.7rem', fontWeight: 600, marginBottom: '4px' }}>🔍 ANALYSIS</div>
+          <div style={{ color: '#94a3b8', fontSize: '0.82rem', lineHeight: 1.5 }}>{result.description}</div>
+        </div>
+
+        {/* Treatment */}
+        {result.pestDetected && (
+          <div style={{ padding: '10px', background: 'rgba(239,68,68,0.06)', borderRadius: '8px', marginBottom: '10px', border: '1px solid rgba(239,68,68,0.15)' }}>
+            <div style={{ color: '#f87171', fontSize: '0.7rem', fontWeight: 600, marginBottom: '4px' }}>💊 TREATMENT</div>
+            <div style={{ color: '#94a3b8', fontSize: '0.82rem', lineHeight: 1.5 }}>{result.treatment}</div>
+          </div>
+        )}
+
+        {/* Prevention */}
+        <div style={{ padding: '10px', background: 'rgba(22,163,74,0.06)', borderRadius: '8px', border: '1px solid rgba(22,163,74,0.15)' }}>
+          <div style={{ color: '#4ade80', fontSize: '0.7rem', fontWeight: 600, marginBottom: '4px' }}>🛡️ PREVENTION</div>
+          <div style={{ color: '#94a3b8', fontSize: '0.82rem', lineHeight: 1.5 }}>{result.prevention}</div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// Camera feed — supports direct ESP32-CAM URL + AI analysis
 function CameraFeed({ camera, onUrlChange }) {
-  const [imgError, setImgError]   = useState(false);
-  const [editing, setEditing]     = useState(false);
-  const [inputUrl, setInputUrl]   = useState(camera.streamUrl || '');
+  const [imgError, setImgError]     = useState(false);
+  const [editing, setEditing]       = useState(false);
+  const [inputUrl, setInputUrl]     = useState(camera.streamUrl || '');
+  const [analyzing, setAnalyzing]   = useState(false);
+  const [aiResult, setAiResult]     = useState(null);
   const imgRef = useRef(null);
 
-  // Direct stream URL (no proxy needed when on same network)
-  const streamUrl = camera.streamUrl || null;
-  const isOnline  = streamUrl && !imgError;
+  const streamUrl   = camera.streamUrl || null;
+  const snapshotUrl = streamUrl ? streamUrl.replace('/stream', '/snapshot') : null;
+  const isOnline    = streamUrl && !imgError;
 
   const handleSave = () => {
     onUrlChange(camera.id, inputUrl.trim());
@@ -33,21 +115,72 @@ function CameraFeed({ camera, onUrlChange }) {
     setImgError(false);
   };
 
+  // AI Pest Analysis
+  const analyzeWithAI = async () => {
+    if (!snapshotUrl && !isOnline) {
+      alert('Camera must be online to analyze!');
+      return;
+    }
+    setAnalyzing(true);
+    try {
+      // Try to get snapshot from ESP32-CAM
+      const res = await axios.post('/api/pest/analyze', {
+        imageUrl: snapshotUrl || streamUrl
+      });
+      setAiResult(res.data.analysis);
+    } catch (err) {
+      // If camera not reachable, show demo analysis
+      setAiResult({
+        pestDetected: false,
+        pestName: 'None',
+        confidence: 95,
+        severity: 'None',
+        description: 'Camera not reachable from server. Please upload an image manually.',
+        treatment: 'N/A',
+        prevention: 'Ensure camera is on same network as server.'
+      });
+    } finally {
+      setAnalyzing(false);
+    }
+  };
+
+  // Upload image for analysis
+  const handleImageUpload = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    setAnalyzing(true);
+    try {
+      const reader = new FileReader();
+      reader.onload = async (ev) => {
+        const base64 = ev.target.result;
+        const res = await axios.post('/api/pest/analyze', { imageBase64: base64 });
+        setAiResult(res.data.analysis);
+        setAnalyzing(false);
+      };
+      reader.readAsDataURL(file);
+    } catch (err) {
+      setAnalyzing(false);
+      alert('Analysis failed: ' + err.message);
+    }
+  };
+
   return (
-    <div style={{
-      borderRadius: '10px', overflow: 'hidden',
-      border: `1px solid ${isOnline ? '#16a34a44' : '#334155'}`,
-      background: '#0f172a'
-    }}>
-      {/* Header */}
+    <>
+      {aiResult && <AIResultCard result={aiResult} onClose={() => setAiResult(null)} />}
       <div style={{
-        padding: '8px 12px', background: '#1e293b',
-        display: 'flex', alignItems: 'center', justifyContent: 'space-between'
+        borderRadius: '10px', overflow: 'hidden',
+        border: `1px solid ${isOnline ? '#16a34a44' : '#334155'}`,
+        background: '#0f172a'
       }}>
-        <span style={{ color: '#94a3b8', fontSize: '0.78rem', fontWeight: 600 }}>
-          📷 {camera.label || camera.id}
-        </span>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+        {/* Header */}
+        <div style={{
+          padding: '8px 12px', background: '#1e293b',
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between'
+        }}>
+          <span style={{ color: '#94a3b8', fontSize: '0.78rem', fontWeight: 600 }}>
+            📷 {camera.label || camera.id}
+          </span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
           <span style={{
             padding: '2px 7px', borderRadius: '20px', fontSize: '0.68rem', fontWeight: 700,
             background: isOnline ? 'rgba(22,163,74,0.15)' : 'rgba(100,116,139,0.15)',
@@ -122,19 +255,42 @@ function CameraFeed({ camera, onUrlChange }) {
         )}
       </div>
 
+      {/* AI Analysis Buttons */}
+      <div style={{ padding: '8px 10px', background: '#0a1628', borderTop: '1px solid #1e293b', display: 'flex', gap: '6px' }}>
+        {/* Analyze from camera */}
+        {isOnline && (
+          <button onClick={analyzeWithAI} disabled={analyzing} style={{
+            flex: 1, padding: '6px', background: analyzing ? 'rgba(139,92,246,0.1)' : 'rgba(139,92,246,0.2)',
+            border: '1px solid rgba(139,92,246,0.4)', borderRadius: '6px',
+            color: '#a78bfa', fontSize: '0.72rem', cursor: analyzing ? 'not-allowed' : 'pointer', fontWeight: 600
+          }}>
+            {analyzing ? '⏳ Analyzing...' : '🤖 AI Analyze'}
+          </button>
+        )}
+
+        {/* Upload image for analysis */}
+        <label style={{
+          flex: 1, padding: '6px', background: 'rgba(59,130,246,0.15)',
+          border: '1px solid rgba(59,130,246,0.3)', borderRadius: '6px',
+          color: '#60a5fa', fontSize: '0.72rem', cursor: 'pointer',
+          fontWeight: 600, textAlign: 'center', display: 'block'
+        }}>
+          {analyzing ? '⏳ Analyzing...' : '📁 Upload Leaf'}
+          <input type="file" accept="image/*" onChange={handleImageUpload}
+            style={{ display: 'none' }} disabled={analyzing} />
+        </label>
+      </div>
+
       {/* URL display */}
       {streamUrl && !editing && (
-        <div style={{
-          padding: '5px 10px', background: '#0a1628',
-          borderTop: '1px solid #1e293b'
-        }}>
+        <div style={{ padding: '4px 10px', background: '#0a1628', borderTop: '1px solid #1e293b' }}>
           <a href={streamUrl} target="_blank" rel="noreferrer" style={{
-            color: '#3b82f6', fontSize: '0.65rem', textDecoration: 'none',
-            wordBreak: 'break-all'
+            color: '#3b82f6', fontSize: '0.65rem', textDecoration: 'none', wordBreak: 'break-all'
           }}>{streamUrl}</a>
         </div>
       )}
     </div>
+    </>
   );
 }
 
