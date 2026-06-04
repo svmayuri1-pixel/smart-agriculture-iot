@@ -52,6 +52,43 @@ if (fs.existsSync(buildPath)) {
 // Socket.IO for real-time data
 require('./mqtt/mqttClient')(io);
 
+// Handle phone GPS data from /track page
+io.on('connection', (socket) => {
+  socket.on('phone_gps', (data) => {
+    const { updateRealVehicle } = require('./utils/simulator');
+
+    // Store as real vehicle data
+    updateRealVehicle(data.id, {
+      id:       data.id,
+      name:     data.name || 'Phone GPS',
+      lat:      data.lat,
+      lng:      data.lng,
+      speed:    data.speed || 0,
+      fuel:     data.fuel  || 100,
+      status:   data.status || 'Active',
+      gpsValid: data.gpsValid !== false,
+      isReal:   true,
+      lastUpdated: new Date().toISOString()
+    });
+
+    // Broadcast to all dashboard clients
+    io.emit('vehicle_update', {
+      id:       data.id,
+      name:     data.name || 'Phone GPS',
+      lat:      data.lat,
+      lng:      data.lng,
+      speed:    data.speed || 0,
+      fuel:     data.fuel  || 100,
+      status:   data.status || 'Active',
+      gpsValid: data.gpsValid !== false,
+      isReal:   true,
+      lastUpdated: new Date().toISOString()
+    });
+
+    console.log(`📱 Phone GPS: ${data.name} → ${data.lat}, ${data.lng} (±${data.accuracy}m)`);
+  });
+});
+
 // Simulate real-time sensor data every 5 seconds
 const { simulateSensorData } = require('./utils/simulator');
 setInterval(() => {

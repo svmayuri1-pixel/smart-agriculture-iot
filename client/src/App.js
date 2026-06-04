@@ -12,6 +12,7 @@ import InventoryPage from './pages/InventoryPage';
 import AlertsPage from './pages/AlertsPage';
 import WeatherPage from './pages/WeatherPage';
 import PestPage from './pages/PestPage';
+import TrackPage from './pages/TrackPage';
 import Layout from './components/Layout';
 
 function PrivateRoute({ children }) {
@@ -40,6 +41,8 @@ export default function App() {
           <Routes>
             <Route path="/login"    element={<PublicRoute><LoginPage /></PublicRoute>} />
             <Route path="/register" element={<PublicRoute><RegisterPage /></PublicRoute>} />
+            {/* Public GPS tracking page — no login needed, open on phone */}
+            <Route path="/track" element={<TrackPage />} />
             <Route path="/" element={<PrivateRoute><Layout /></PrivateRoute>}>
               <Route index element={<Navigate to="/dashboard" replace />} />
               <Route path="dashboard"  element={<Dashboard />} />
