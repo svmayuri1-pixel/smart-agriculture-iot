@@ -246,24 +246,7 @@ export default function LivestockPage() {
             </div>
           )}
 
-          {/* Wiring guide when offline */}
-          {!sensorConnected && (
-            <div style={{
-              marginTop: '16px', padding: '14px',
-              background: 'rgba(59,130,246,0.06)',
-              border: '1px solid rgba(59,130,246,0.2)',
-              borderRadius: '10px'
-            }}>
-              <div style={{ color: '#60a5fa', fontSize: '0.75rem', fontWeight: 700, marginBottom: '8px' }}>
-                🔌 HC-SR501 Wiring
-              </div>
-              <div style={{ color: '#475569', fontSize: '0.75rem', lineHeight: 1.9 }}>
-                PIR VCC → ESP32 <strong style={{ color: '#94a3b8' }}>5V (Vin)</strong><br/>
-                PIR GND → ESP32 <strong style={{ color: '#94a3b8' }}>GND</strong><br/>
-                PIR OUT → ESP32 <strong style={{ color: '#94a3b8' }}>GPIO 14</strong>
-              </div>
-            </div>
-          )}
+          {/* Wiring guide when offline - removed */}
         </div>
       </div>
 

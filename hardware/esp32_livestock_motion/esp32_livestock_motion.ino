@@ -47,9 +47,9 @@ const char* SENSOR_ID     = "PIR-LIVESTOCK-01";
 // ╔══════════════════════════════════════╗
 // ║   ⏱️  TIMING                         ║
 // ╚══════════════════════════════════════╝
-const unsigned long DEBOUNCE_TIME   = 2000;   // 2s debounce
-const unsigned long CLEAR_TIMEOUT  = 8000;   // 8s no motion → clear
-const unsigned long PUBLISH_INTERVAL = 3000; // Publish every 3s
+const unsigned long DEBOUNCE_TIME    = 500;   // 0.5s debounce (reduced)
+const unsigned long CLEAR_TIMEOUT   = 5000;  // 5s no motion → clear
+const unsigned long PUBLISH_INTERVAL = 2000; // Publish every 2s
 
 // ════════════════════════════════════════
 WiFiClient   wifiClient;
@@ -70,15 +70,15 @@ void setup() {
   pinMode(LED_PIN, OUTPUT);
   digitalWrite(LED_PIN, LOW);
 
-  // PIR warmup — 30 seconds
-  Serial.println("⏳ PIR sensor warming up (30 seconds)...");
-  for (int i = 30; i > 0; i--) {
-    Serial.printf("   %d seconds...\n", i);
-    digitalWrite(LED_PIN, i % 2); // blink during warmup
+  // PIR warmup — 5 seconds only (sensor warms up fast after first use)
+  Serial.println("⏳ PIR sensor warming up (5 seconds)...");
+  for (int i = 5; i > 0; i--) {
+    Serial.printf("   %d...\n", i);
+    digitalWrite(LED_PIN, i % 2);
     delay(1000);
   }
   digitalWrite(LED_PIN, LOW);
-  Serial.println("✅ PIR Ready!");
+  Serial.println("✅ PIR Ready! Wave your hand in front of the sensor.");
 
   connectWiFi();
   mqtt.setServer(MQTT_BROKER, MQTT_PORT);
