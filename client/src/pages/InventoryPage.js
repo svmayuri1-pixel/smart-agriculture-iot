@@ -35,8 +35,8 @@ export default function InventoryPage() {
   const [sensorConnected, setSensorConnected] = useState(false);
   const [lastUpdated, setLastUpdated]     = useState(null);
 
-  // Box height — match with your ESP32 code BOX_HEIGHT value
-  const BOX_HEIGHT = 30; // cm
+  // Box height — 9cm
+  const BOX_HEIGHT = 9; // cm
 
   useEffect(() => {
     const socket = io('/', { transports: ['websocket', 'polling'] });
