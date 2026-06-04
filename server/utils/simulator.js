@@ -1,8 +1,8 @@
 /**
  * Smart Agriculture — Data Manager
- * 
- * Real sensor data வந்தா → real data use பண்ணும்
- * Real sensor இல்லன்னா → simulated data use பண்ணும்
+ *
+ * Real sensor data வந்தா → real data மட்டும் use பண்ணும்
+ * Real sensor இல்லன்னா → null values return பண்ணும் (no fake data)
  */
 
 // Store for real sensor data from ESP32
@@ -32,99 +32,61 @@ function updateRealCamera(id, data) {
   realData.cameras[id] = { ...data, isReal: true };
 }
 
-// ─── Simulator (fallback when no real sensors) ────────────────────────────
-function rand(min, max, decimals = 1) {
-  return parseFloat((Math.random() * (max - min) + min).toFixed(decimals));
-}
-
+// ─── Real data only — no simulation fallback ──────────────────────────────
 function simulateSensorData() {
-  // Use real field data if available, else simulate
+  // Field: real data only
   const field = realData.field ? {
-    soilMoisture:  realData.field.soilMoisture,
-    humidity:      realData.field.humidity,
-    temperature:   realData.field.temperature || rand(18, 38),
-    lightIntensity: rand(200, 1000),
-    ph:            realData.field.ph || rand(5.5, 7.5),
-    nitrogen:      rand(10, 60),
-    phosphorus:    rand(5, 40),
-    potassium:     rand(10, 50),
-    isReal:        true
+    soilMoisture:   realData.field.soilMoisture   ?? null,
+    humidity:       realData.field.humidity        ?? null,
+    temperature:    realData.field.temperature     ?? null,
+    lightIntensity: realData.field.lightIntensity  ?? null,
+    ph:             realData.field.ph              ?? null,
+    nitrogen:       realData.field.nitrogen        ?? null,
+    phosphorus:     realData.field.phosphorus      ?? null,
+    potassium:      realData.field.potassium       ?? null,
+    isReal:         true
   } : {
-    soilMoisture:  rand(20, 80),
-    temperature:   rand(18, 38),
-    humidity:      rand(40, 90),
-    lightIntensity: rand(200, 1000),
-    ph:            rand(5.5, 7.5),
-    nitrogen:      rand(10, 60),
-    phosphorus:    rand(5, 40),
-    potassium:     rand(10, 50),
-    isReal:        false
+    soilMoisture: null, temperature: null, humidity: null,
+    lightIntensity: null, ph: null, nitrogen: null,
+    phosphorus: null, potassium: null, isReal: false
   };
 
-  // Use real intrusion data if available
+  // Intrusion: real data only
   const intrusion = realData.intrusion ? {
-    detected:        realData.intrusion.detected,
-    zone:            realData.intrusion.zone || 'Farm Perimeter',
-    type:            realData.intrusion.type || 'Motion',
-    deterrentActive: realData.intrusion.deterrentActive || false,
+    detected:        realData.intrusion.detected        ?? false,
+    zone:            realData.intrusion.zone            ?? null,
+    type:            realData.intrusion.type            ?? null,
+    deterrentActive: realData.intrusion.deterrentActive ?? false,
     isReal:          true
   } : {
-    detected:        Math.random() > 0.85,
-    zone:            ['North Field', 'South Field', 'East Boundary', 'West Boundary'][Math.floor(Math.random() * 4)],
-    type:            ['Bird', 'Wild Animal', 'None'][Math.floor(Math.random() * 3)],
-    deterrentActive: Math.random() > 0.9,
-    isReal:          false
+    detected: false, zone: null, type: null, deterrentActive: false, isReal: false
   };
 
-  // Use real vehicles if available, else simulate
-  const realVehicleList = Object.values(realData.vehicles);
-  const vehicles = realVehicleList.length > 0 ? realVehicleList : [
-    { id: 'TRACTOR-01', name: 'John Deere 5075E',    lat: rand(24.85, 24.87), lng: rand(67.05, 67.07), speed: rand(0, 25), fuel: rand(20, 100), status: 'Active',  isReal: false },
-    { id: 'TRACTOR-02', name: 'Massey Ferguson 375', lat: rand(24.83, 24.85), lng: rand(67.03, 67.05), speed: 0,           fuel: rand(20, 100), status: 'Parked',  isReal: false }
-  ];
+  // Vehicles: real only
+  const vehicles = Object.values(realData.vehicles);
 
-  // Use real livestock if available, else simulate
-  const realLivestockList = Object.values(realData.livestock);
-  const livestock = realLivestockList.length > 0 ? realLivestockList : [
-    { id: 'COW-001',  name: 'Bessie', heartRate: rand(50, 90),  temp: rand(37, 39.5), lat: rand(24.8, 24.9), lng: rand(67.0, 67.1), status: 'Healthy', isReal: false },
-    { id: 'COW-002',  name: 'Daisy',  heartRate: rand(50, 90),  temp: rand(37, 39.5), lat: rand(24.8, 24.9), lng: rand(67.0, 67.1), status: Math.random() > 0.9 ? 'Alert' : 'Healthy', isReal: false },
-    { id: 'COW-003',  name: 'Molly',  heartRate: rand(50, 90),  temp: rand(37, 39.5), lat: rand(24.8, 24.9), lng: rand(67.0, 67.1), status: 'Healthy', isReal: false },
-    { id: 'GOAT-001', name: 'Billy',  heartRate: rand(70, 110), temp: rand(38, 40),   lat: rand(24.8, 24.9), lng: rand(67.0, 67.1), status: 'Healthy', isReal: false }
-  ];
+  // Livestock: real only
+  const livestock = Object.values(realData.livestock);
 
   return {
     timestamp: new Date().toISOString(),
     field,
     weather: {
-      temperature: rand(15, 40),
-      humidity:    rand(30, 95),
-      windSpeed:   rand(0, 30),
-      rainfall:    rand(0, 20),
-      uvIndex:     rand(0, 11),
-      condition:   ['Sunny', 'Cloudy', 'Rainy', 'Windy', 'Partly Cloudy'][Math.floor(Math.random() * 5)]
+      temperature: null, humidity: null, windSpeed: null,
+      rainfall: null, uvIndex: null, condition: null
     },
     irrigation: {
-      zone1:     Math.random() > 0.5,
-      zone2:     Math.random() > 0.7,
-      zone3:     Math.random() > 0.6,
-      waterFlow: rand(0, 50),
-      tankLevel: rand(20, 100)
+      zone1: false, zone2: false, zone3: false,
+      waterFlow: null, tankLevel: null
     },
     pest: {
-      detected:    Math.random() > 0.8,
-      confidence:  rand(60, 99),
-      type:        ['Aphids', 'Whitefly', 'Caterpillar', 'None'][Math.floor(Math.random() * 4)],
-      sprayActive: Math.random() > 0.85
+      detected: false, confidence: null, type: 'None', sprayActive: false
     },
     livestock,
     vehicles,
     intrusion,
     inventory: {
-      fertilizer: rand(10, 100),
-      seeds:      rand(10, 100),
-      pesticide:  rand(10, 100),
-      water:      rand(20, 100),
-      fuel:       rand(10, 100)
+      fertilizer: null, seeds: null, pesticide: null, water: null, fuel: null
     }
   };
 }

@@ -59,23 +59,26 @@ function QuickControl({ icon, label, active, onToggle }) {
   );
 }
 
+// Helper: display value or "--" if null/undefined
+function fmt(val, decimals = 1) {
+  if (val === null || val === undefined) return '--';
+  return typeof val === 'number' ? parseFloat(val.toFixed(decimals)) : val;
+}
+
 export default function Dashboard() {
-  const { sensorData, history } = useSensor();
+  const { sensorData, sensorOnline, history } = useSensor();
   const { user } = useAuth();
   const navigate = useNavigate();
   const [controls, setControls] = React.useState({ irrigation: true, pestSpray: false });
   const [autoIrrigation, setAutoIrrigation] = React.useState(true);
   const [irrigationThresholdLow, setIrrigationThresholdLow]   = React.useState(30);
   const [irrigationThresholdHigh, setIrrigationThresholdHigh] = React.useState(70);
-  const [manualSoilMoisture, setManualSoilMoisture] = React.useState(null);
 
   const toggle = key => setControls(c => ({ ...c, [key]: !c[key] }));
   const d = sensorData;
 
-  // Use real sensor data if available, else manual slider
-  const soilMoisture = manualSoilMoisture !== null
-    ? manualSoilMoisture
-    : d.field.soilMoisture;
+  // Use real sensor soil moisture only
+  const soilMoisture = d.field.soilMoisture;
 
   // Auto irrigation logic
   const autoIrrigationOn  = autoIrrigation && soilMoisture < irrigationThresholdLow;
@@ -88,7 +91,7 @@ export default function Dashboard() {
     d.pest.detected,
     d.intrusion.detected,
     d.livestock.some(l => l.status === 'Alert'),
-    soilMoisture < irrigationThresholdLow
+    soilMoisture !== null && soilMoisture < irrigationThresholdLow
   ].filter(Boolean).length;
 
   return (
@@ -99,28 +102,33 @@ export default function Dashboard() {
           Good {new Date().getHours() < 12 ? 'Morning' : new Date().getHours() < 17 ? 'Afternoon' : 'Evening'}, {user?.name?.split(' ')[0]} 👋
         </h1>
         <p style={{ color: '#64748b', fontSize: '0.9rem', marginTop: '4px' }}>
-          {user?.farm} · Last updated: {new Date(d.timestamp).toLocaleTimeString()}
-          {alertCount > 0 && <span style={{ marginLeft: '12px', color: '#f87171', fontWeight: 600 }}>⚠️ {alertCount} active alert{alertCount > 1 ? 's' : ''}</span>}
+          {user?.farm} · {d.timestamp ? `Last updated: ${new Date(d.timestamp).toLocaleTimeString()}` : 'Waiting for sensors...'}
+          {!sensorOnline && (
+            <span style={{ marginLeft: '12px', color: '#f59e0b', fontWeight: 600 }}>
+              ⚡ No sensor connected — connect your ESP32 to see live data
+            </span>
+          )}
+          {sensorOnline && alertCount > 0 && <span style={{ marginLeft: '12px', color: '#f87171', fontWeight: 600 }}>⚠️ {alertCount} active alert{alertCount > 1 ? 's' : ''}</span>}
         </p>
       </div>
 
       {/* Stats Grid */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: '14px', marginBottom: '24px' }}>
-        <StatCard icon="💧" label="Soil Moisture" value={soilMoisture} unit="%" color="#3b82f6"
-          status={soilMoisture < irrigationThresholdLow ? 'Low' : soilMoisture > irrigationThresholdHigh ? 'High' : 'Good'}
+        <StatCard icon="💧" label="Soil Moisture" value={fmt(soilMoisture)} unit={soilMoisture !== null ? '%' : ''} color="#3b82f6"
+          status={soilMoisture === null ? null : soilMoisture < irrigationThresholdLow ? 'Low' : soilMoisture > irrigationThresholdHigh ? 'High' : 'Good'}
           onClick={() => navigate('/field')} />
-        <StatCard icon="💦" label="Humidity" value={d.field.humidity} unit="%" color="#06b6d4"
-          status="Normal" onClick={() => navigate('/field')} />
-        <StatCard icon="🌤️" label="Weather" value={d.weather.condition} unit="" color="#8b5cf6"
-          status={d.weather.condition} onClick={() => navigate('/weather')} />
+        <StatCard icon="💦" label="Humidity" value={fmt(d.field.humidity)} unit={d.field.humidity !== null ? '%' : ''} color="#06b6d4"
+          status={d.field.humidity !== null ? 'Normal' : null} onClick={() => navigate('/field')} />
+        <StatCard icon="🌤️" label="Weather" value={fmt(d.weather.condition)} unit="" color="#8b5cf6"
+          status={d.weather.condition || null} onClick={() => navigate('/weather')} />
         <StatCard icon="🐛" label="Pest Alert" value={d.pest.detected ? 'YES' : 'Clear'} unit="" color={d.pest.detected ? '#ef4444' : '#16a34a'}
           status={d.pest.detected ? 'Alert' : 'Good'} onClick={() => navigate('/pest')} />
-        <StatCard icon="🐄" label="Livestock" value={d.livestock.length} unit="animals" color="#16a34a"
-          status={d.livestock.some(l => l.status === 'Alert') ? 'Alert' : 'Good'} onClick={() => navigate('/livestock')} />
-        <StatCard icon="🚜" label="Vehicles" value={d.vehicles.filter(v => v.status === 'Active').length} unit="active" color="#f97316"
-          status="Normal" onClick={() => navigate('/vehicles')} />
-        <StatCard icon="🌊" label="Tank Level" value={d.irrigation.tankLevel} unit="%" color="#0ea5e9"
-          status={d.irrigation.tankLevel < 30 ? 'Low' : 'Good'} onClick={() => navigate('/field')} />
+        <StatCard icon="🐄" label="Livestock" value={d.livestock.length > 0 ? d.livestock.length : '--'} unit={d.livestock.length > 0 ? 'animals' : ''} color="#16a34a"
+          status={d.livestock.length > 0 ? (d.livestock.some(l => l.status === 'Alert') ? 'Alert' : 'Good') : null} onClick={() => navigate('/livestock')} />
+        <StatCard icon="🚜" label="Vehicles" value={d.vehicles.length > 0 ? d.vehicles.filter(v => v.status === 'Active').length : '--'} unit={d.vehicles.length > 0 ? 'active' : ''} color="#f97316"
+          status={d.vehicles.length > 0 ? 'Normal' : null} onClick={() => navigate('/vehicles')} />
+        <StatCard icon="🌊" label="Tank Level" value={fmt(d.irrigation.tankLevel)} unit={d.irrigation.tankLevel !== null ? '%' : ''} color="#0ea5e9"
+          status={d.irrigation.tankLevel !== null ? (d.irrigation.tankLevel < 30 ? 'Low' : 'Good') : null} onClick={() => navigate('/field')} />
       </div>
 
       {/* Charts + Controls */}
@@ -197,37 +205,6 @@ export default function Dashboard() {
                     style={{ width: '100%', accentColor: '#16a34a' }} />
                 </div>
 
-                {/* Demo soil moisture slider */}
-                <div style={{ marginTop: '10px', padding: '10px', background: '#0f172a', borderRadius: '8px', border: '1px solid #334155' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
-                    <span style={{ color: '#64748b', fontSize: '0.72rem', fontWeight: 600 }}>
-                      🌱 DEMO: Soil Moisture
-                    </span>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                      <span style={{ color: '#3b82f6', fontSize: '0.72rem', fontWeight: 700 }}>{soilMoisture}%</span>
-                      {manualSoilMoisture !== null && (
-                        <button onClick={() => setManualSoilMoisture(null)} style={{
-                          background: 'rgba(100,116,139,0.2)', border: 'none', borderRadius: '4px',
-                          color: '#64748b', fontSize: '0.65rem', padding: '1px 5px', cursor: 'pointer'
-                        }}>Reset</button>
-                      )}
-                    </div>
-                  </div>
-                  <input
-                    type="range" min="0" max="100"
-                    value={soilMoisture}
-                    onChange={e => setManualSoilMoisture(Number(e.target.value))}
-                    style={{ width: '100%', accentColor: '#3b82f6' }}
-                  />
-                  <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '2px' }}>
-                    <span style={{ color: '#ef4444', fontSize: '0.65rem' }}>0% Dry</span>
-                    <span style={{ color: '#16a34a', fontSize: '0.65rem' }}>100% Wet</span>
-                  </div>
-                  <div style={{ color: '#475569', fontSize: '0.65rem', marginTop: '4px', textAlign: 'center' }}>
-                    Drag slider to simulate soil moisture
-                  </div>
-                </div>
-
                 {/* Status indicator */}
                 <div style={{
                   marginTop: '10px', padding: '8px 10px', borderRadius: '6px', textAlign: 'center',
@@ -235,9 +212,11 @@ export default function Dashboard() {
                   border: `1px solid ${irrigationActive ? '#16a34a44' : '#334155'}`
                 }}>
                   <span style={{ fontSize: '0.78rem', fontWeight: 700, color: irrigationActive ? '#4ade80' : '#64748b' }}>
-                    {irrigationActive
-                      ? `💧 Irrigation ON — Soil ${soilMoisture}% < ${irrigationThresholdLow}%`
-                      : `⏸ Irrigation OFF — Soil ${soilMoisture}%`}
+                    {soilMoisture === null
+                      ? '⏳ Waiting for sensor...'
+                      : irrigationActive
+                        ? `💧 Irrigation ON — Soil ${soilMoisture}% < ${irrigationThresholdLow}%`
+                        : `⏸ Irrigation OFF — Soil ${soilMoisture}%`}
                   </span>
                 </div>
               </div>
@@ -275,30 +254,38 @@ export default function Dashboard() {
         {/* Livestock */}
         <div style={{ background: '#1e293b', border: '1px solid #334155', borderRadius: '12px', padding: '20px' }}>
           <h3 style={{ color: '#e2e8f0', fontSize: '0.95rem', fontWeight: 600, marginBottom: '14px' }}>🐄 Livestock Status</h3>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-            {d.livestock.map(animal => (
-              <div key={animal.id} style={{
-                display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                padding: '8px 12px', background: '#0f172a', borderRadius: '8px',
-                border: `1px solid ${animal.status === 'Alert' ? '#ef444433' : '#1e293b'}`
-              }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <span>{animal.id.startsWith('COW') ? '🐄' : '🐐'}</span>
-                  <div>
-                    <div style={{ color: '#e2e8f0', fontSize: '0.8rem', fontWeight: 600 }}>{animal.name}</div>
-                    <div style={{ color: '#64748b', fontSize: '0.7rem' }}>{animal.id}</div>
+          {d.livestock.length === 0 ? (
+            <div style={{ textAlign: 'center', padding: '30px 0', color: '#475569' }}>
+              <div style={{ fontSize: '2rem', marginBottom: '8px' }}>🐄</div>
+              <div style={{ fontSize: '0.82rem' }}>No livestock sensors connected</div>
+              <div style={{ fontSize: '0.72rem', marginTop: '4px', color: '#334155' }}>Connect ESP32 GPS collar to see data</div>
+            </div>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              {d.livestock.map(animal => (
+                <div key={animal.id} style={{
+                  display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                  padding: '8px 12px', background: '#0f172a', borderRadius: '8px',
+                  border: `1px solid ${animal.status === 'Alert' ? '#ef444433' : '#1e293b'}`
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <span>{animal.id.startsWith('COW') ? '🐄' : '🐐'}</span>
+                    <div>
+                      <div style={{ color: '#e2e8f0', fontSize: '0.8rem', fontWeight: 600 }}>{animal.name}</div>
+                      <div style={{ color: '#64748b', fontSize: '0.7rem' }}>{animal.id}</div>
+                    </div>
+                  </div>
+                  <div style={{ textAlign: 'right' }}>
+                    <div style={{ color: '#94a3b8', fontSize: '0.75rem' }}>❤️ {fmt(animal.heartRate)} bpm</div>
+                    <span style={{
+                      fontSize: '0.7rem', fontWeight: 600,
+                      color: animal.status === 'Alert' ? '#f87171' : '#4ade80'
+                    }}>{animal.status}</span>
                   </div>
                 </div>
-                <div style={{ textAlign: 'right' }}>
-                  <div style={{ color: '#94a3b8', fontSize: '0.75rem' }}>❤️ {animal.heartRate} bpm</div>
-                  <span style={{
-                    fontSize: '0.7rem', fontWeight: 600,
-                    color: animal.status === 'Alert' ? '#f87171' : '#4ade80'
-                  }}>{animal.status}</span>
-                </div>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          )}
         </div>
 
         {/* Inventory */}
@@ -315,17 +302,24 @@ export default function Dashboard() {
               <div key={item.label}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
                   <span style={{ color: '#94a3b8', fontSize: '0.8rem' }}>{item.label}</span>
-                  <span style={{ color: item.value < 30 ? '#f87171' : '#e2e8f0', fontSize: '0.8rem', fontWeight: 600 }}>{item.value}%</span>
+                  <span style={{ color: item.value !== null && item.value < 30 ? '#f87171' : '#e2e8f0', fontSize: '0.8rem', fontWeight: 600 }}>
+                    {item.value !== null ? `${item.value}%` : '--'}
+                  </span>
                 </div>
                 <div style={{ height: '6px', background: '#0f172a', borderRadius: '3px', overflow: 'hidden' }}>
                   <div style={{
-                    height: '100%', width: `${item.value}%`, borderRadius: '3px',
-                    background: item.value < 30 ? '#ef4444' : item.value < 50 ? '#f59e0b' : item.color,
+                    height: '100%', width: item.value !== null ? `${item.value}%` : '0%', borderRadius: '3px',
+                    background: item.value === null ? '#334155' : item.value < 30 ? '#ef4444' : item.value < 50 ? '#f59e0b' : item.color,
                     transition: 'width 0.5s ease'
                   }} />
                 </div>
               </div>
             ))}
+            {d.inventory.fertilizer === null && (
+              <div style={{ textAlign: 'center', color: '#475569', fontSize: '0.75rem', marginTop: '8px' }}>
+                Connect inventory sensors to see levels
+              </div>
+            )}
           </div>
         </div>
       </div>

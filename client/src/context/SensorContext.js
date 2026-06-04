@@ -3,71 +3,95 @@ import { io } from 'socket.io-client';
 
 const SensorContext = createContext(null);
 
-// Generate initial mock data
-function mockData() {
-  const r = (a, b, d = 1) => parseFloat((Math.random() * (b - a) + a).toFixed(d));
+// Empty initial state — no fake data, wait for real sensors
+function emptyData() {
   return {
-    timestamp: new Date().toISOString(),
-    field: { soilMoisture: r(30, 70), temperature: r(20, 35), humidity: r(50, 80), ph: r(6, 7.2), nitrogen: r(20, 50), phosphorus: r(10, 30), potassium: r(15, 40), lightIntensity: r(300, 900) },
-    weather: { temperature: r(22, 35), humidity: r(40, 80), windSpeed: r(5, 20), rainfall: r(0, 5), uvIndex: r(3, 9), condition: 'Partly Cloudy' },
-    irrigation: { zone1: true, zone2: false, zone3: true, waterFlow: r(10, 40), tankLevel: r(50, 90) },
-    pest: { detected: false, confidence: 0, type: 'None', sprayActive: false },
-    livestock: [
-      { id: 'COW-001', name: 'Bessie', heartRate: r(60, 80), temp: r(37.5, 38.5), lat: 24.851, lng: 67.011, status: 'Healthy' },
-      { id: 'COW-002', name: 'Daisy',  heartRate: r(60, 80), temp: r(37.5, 38.5), lat: 24.853, lng: 67.013, status: 'Healthy' },
-      { id: 'COW-003', name: 'Molly',  heartRate: r(60, 80), temp: r(37.5, 38.5), lat: 24.855, lng: 67.015, status: 'Healthy' },
-      { id: 'GOAT-001', name: 'Billy', heartRate: r(80, 100), temp: r(38, 39.5), lat: 24.857, lng: 67.017, status: 'Healthy' }
-    ],
-    vehicles: [
-      { id: 'TRACTOR-01', name: 'John Deere 5075E', lat: 24.860, lng: 67.020, speed: r(0, 20), fuel: r(50, 90), status: 'Active' },
-      { id: 'TRACTOR-02', name: 'Massey Ferguson 375', lat: 24.845, lng: 67.005, speed: 0, fuel: r(30, 60), status: 'Parked' }
-    ],
-    intrusion: { detected: false, zone: 'None', type: 'None', deterrentActive: false },
-    inventory: { fertilizer: 45, seeds: 80, pesticide: 60, water: 80, fuel: 40 }
+    timestamp: null,
+    field:     { soilMoisture: null, temperature: null, humidity: null, ph: null, nitrogen: null, phosphorus: null, potassium: null, lightIntensity: null, isReal: false },
+    weather:   { temperature: null, humidity: null, windSpeed: null, rainfall: null, uvIndex: null, condition: null },
+    irrigation: { zone1: false, zone2: false, zone3: false, waterFlow: null, tankLevel: null },
+    pest:      { detected: false, confidence: null, type: 'None', sprayActive: false },
+    livestock: [],
+    vehicles:  [],
+    intrusion: { detected: false, zone: null, type: null, deterrentActive: false },
+    inventory: { fertilizer: null, seeds: null, pesticide: null, water: null, fuel: null }
   };
 }
 
 export function SensorProvider({ children }) {
-  const [sensorData, setSensorData] = useState(mockData());
+  const [sensorData, setSensorData] = useState(emptyData());
   const [connected, setConnected]   = useState(false);
+  const [sensorOnline, setSensorOnline] = useState(false);
   const [history, setHistory]       = useState([]);
 
   useEffect(() => {
-    // Try to connect to real socket server
     const socket = io('/', { transports: ['websocket', 'polling'] });
 
     socket.on('connect', () => setConnected(true));
     socket.on('disconnect', () => setConnected(false));
 
+    // Full sensor update from server (broadcasted every 3s)
     socket.on('sensor_update', (data) => {
-      setSensorData(data);
+      // Only show data if it's real (isReal flag from simulator)
+      if (data.field && data.field.isReal) {
+        setSensorOnline(true);
+        setSensorData(data);
+        setHistory(prev => [...prev.slice(-23), {
+          time:         new Date(data.timestamp).toLocaleTimeString(),
+          soilMoisture: data.field.soilMoisture,
+          temperature:  data.field.temperature,
+          humidity:     data.field.humidity
+        }]);
+      }
+    });
+
+    // Real-time field sensor update via MQTT
+    socket.on('field_update', (data) => {
+      setSensorOnline(true);
+      setSensorData(prev => ({
+        ...prev,
+        timestamp: new Date().toISOString(),
+        field: { ...data, isReal: true }
+      }));
       setHistory(prev => [...prev.slice(-23), {
-        time: new Date(data.timestamp).toLocaleTimeString(),
-        soilMoisture: data.field.soilMoisture,
-        temperature: data.field.temperature,
-        humidity: data.field.humidity
+        time:         new Date().toLocaleTimeString(),
+        soilMoisture: data.soilMoisture,
+        temperature:  data.temperature,
+        humidity:     data.humidity
       }]);
     });
 
-    // Fallback: simulate locally if server not available
-    const fallback = setInterval(() => {
-      if (!socket.connected) {
-        const d = mockData();
-        setSensorData(d);
-        setHistory(prev => [...prev.slice(-23), {
-          time: new Date().toLocaleTimeString(),
-          soilMoisture: d.field.soilMoisture,
-          temperature: d.field.temperature,
-          humidity: d.field.humidity
-        }]);
-      }
-    }, 5000);
+    // Real-time livestock update
+    socket.on('livestock_update', (animal) => {
+      setSensorData(prev => {
+        const existing = prev.livestock.filter(a => a.id !== animal.id);
+        return { ...prev, livestock: [...existing, animal] };
+      });
+    });
 
-    return () => { socket.disconnect(); clearInterval(fallback); };
+    // Real-time vehicle update
+    socket.on('vehicle_update', (vehicle) => {
+      setSensorData(prev => {
+        const existing = prev.vehicles.filter(v => v.id !== vehicle.id);
+        return { ...prev, vehicles: [...existing, vehicle] };
+      });
+    });
+
+    // Pest detection
+    socket.on('pest_update', (data) => {
+      setSensorData(prev => ({ ...prev, pest: data }));
+    });
+
+    // Intrusion alert
+    socket.on('intrusion_update', (data) => {
+      setSensorData(prev => ({ ...prev, intrusion: data }));
+    });
+
+    return () => { socket.disconnect(); };
   }, []);
 
   return (
-    <SensorContext.Provider value={{ sensorData, connected, history }}>
+    <SensorContext.Provider value={{ sensorData, connected, sensorOnline, history }}>
       {children}
     </SensorContext.Provider>
   );
