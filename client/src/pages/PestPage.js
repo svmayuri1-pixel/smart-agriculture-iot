@@ -298,7 +298,6 @@ export default function PestPage() {
   const { sensorData } = useSensor();
   const pest = sensorData.pest;
   const info = pestInfo[pest.type] || pestInfo['None'];
-  const [sprayActive, setSprayActive] = useState(pest.sprayActive);
   const [cameras, setCameras]         = useState([]);
   const [globalUrl, setGlobalUrl]     = useState('');
   const [showUrlInput, setShowUrlInput] = useState(false);
@@ -344,9 +343,8 @@ export default function PestPage() {
         </p>
       </div>
 
-      {/* Detection + Spray */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', marginBottom: '24px' }}>
-        {/* Detection card */}
+      {/* Detection only — full width, spray removed */}
+      <div style={{ marginBottom: '24px' }}>
         <div style={{
           background: '#1e293b', border: `1px solid ${pest.detected ? '#ef444433' : '#16a34a33'}`,
           borderRadius: '12px', padding: '24px',
@@ -384,51 +382,6 @@ export default function PestPage() {
               padding: '4px 10px', borderRadius: '20px', fontSize: '0.75rem', fontWeight: 700,
               background: `${info.color}22`, color: info.color
             }}>Severity: {info.severity}</span>
-          </div>
-        </div>
-
-        {/* Spray control */}
-        <div style={{ background: '#1e293b', border: '1px solid #334155', borderRadius: '12px', padding: '24px' }}>
-          <h3 style={{ color: '#e2e8f0', fontSize: '0.95rem', fontWeight: 600, marginBottom: '20px' }}>🚿 Automated Spray System</h3>
-
-          <div style={{
-            padding: '20px', background: '#0f172a', borderRadius: '10px', textAlign: 'center', marginBottom: '16px',
-            border: `1px solid ${sprayActive ? '#16a34a44' : '#334155'}`
-          }}>
-            <div style={{ fontSize: '3rem', marginBottom: '8px' }}>{sprayActive ? '💦' : '⏸'}</div>
-            <div style={{ color: sprayActive ? '#4ade80' : '#64748b', fontSize: '1rem', fontWeight: 700 }}>
-              {sprayActive ? 'Spraying Active' : 'System Standby'}
-            </div>
-          </div>
-
-          <button
-            onClick={() => setSprayActive(!sprayActive)}
-            style={{
-              width: '100%', padding: '12px', borderRadius: '8px', border: 'none',
-              background: sprayActive ? 'rgba(239,68,68,0.15)' : 'rgba(22,163,74,0.15)',
-              color: sprayActive ? '#f87171' : '#4ade80',
-              fontSize: '0.9rem', fontWeight: 700, cursor: 'pointer', marginBottom: '12px',
-              borderWidth: '1px', borderStyle: 'solid',
-              borderColor: sprayActive ? '#ef444433' : '#16a34a33'
-            }}
-          >
-            {sprayActive ? '⏹ Stop Spray' : '▶ Start Spray'}
-          </button>
-
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-            {['Zone 1 — North Field', 'Zone 2 — South Field', 'Zone 3 — East Field'].map((zone, i) => (
-              <div key={zone} style={{
-                display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                padding: '8px 12px', background: '#0f172a', borderRadius: '6px'
-              }}>
-                <span style={{ color: '#94a3b8', fontSize: '0.8rem' }}>{zone}</span>
-                <span style={{
-                  fontSize: '0.72rem', fontWeight: 700, padding: '2px 8px', borderRadius: '20px',
-                  background: sprayActive && i === 0 ? 'rgba(22,163,74,0.15)' : 'rgba(100,116,139,0.1)',
-                  color: sprayActive && i === 0 ? '#4ade80' : '#64748b'
-                }}>{sprayActive && i === 0 ? '💦 Spraying' : 'Idle'}</span>
-              </div>
-            ))}
           </div>
         </div>
       </div>

@@ -37,7 +37,7 @@ export default function FieldMonitor() {
         <p style={{ color: '#64748b', fontSize: '0.85rem', marginTop: '4px' }}>Real-time soil and environmental data</p>
       </div>
 
-      {/* Gauges */}
+      {/* Gauges — pH removed */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: '14px', marginBottom: '24px' }}>
         <GaugeCard icon="💧" label="Soil Moisture" value={f.soilMoisture} max={100} unit="%" color="#3b82f6"
           description={f.soilMoisture < 30 ? '⚠️ Needs irrigation' : f.soilMoisture > 70 ? '✓ Well watered' : '✓ Optimal'} />
@@ -45,8 +45,6 @@ export default function FieldMonitor() {
           description="Relative humidity" />
         <GaugeCard icon="☀️" label="Light"          value={f.lightIntensity} max={1200} unit="lux" color="#fbbf24"
           description="Solar radiation" />
-        <GaugeCard icon="⚗️" label="Soil pH"        value={f.ph}           max={14}  unit="pH" color="#8b5cf6"
-          description={f.ph < 6 ? 'Acidic' : f.ph > 7.5 ? 'Alkaline' : '✓ Neutral'} />
       </div>
 
       {/* Chart — full width */}
@@ -76,28 +74,22 @@ export default function FieldMonitor() {
         </div>
       </div>
 
-      {/* Irrigation Status */}
+      {/* Irrigation Status — Zone 1 only */}
       <div style={{ background: '#1e293b', border: '1px solid #334155', borderRadius: '12px', padding: '20px' }}>
         <h3 style={{ color: '#e2e8f0', fontSize: '0.95rem', fontWeight: 600, marginBottom: '16px' }}>💧 Irrigation System</h3>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: '12px' }}>
-          {[
-            { label: 'Zone 1 — North Field', active: sensorData.irrigation.zone1 },
-            { label: 'Zone 2 — South Field', active: sensorData.irrigation.zone2 },
-            { label: 'Zone 3 — East Field',  active: sensorData.irrigation.zone3 }
-          ].map(zone => (
-            <div key={zone.label} style={{
-              padding: '14px', background: '#0f172a', borderRadius: '8px',
-              border: `1px solid ${zone.active ? '#16a34a44' : '#334155'}`,
-              display: 'flex', alignItems: 'center', justifyContent: 'space-between'
-            }}>
-              <span style={{ color: '#94a3b8', fontSize: '0.85rem' }}>{zone.label}</span>
-              <span style={{
-                padding: '3px 10px', borderRadius: '20px', fontSize: '0.75rem', fontWeight: 700,
-                background: zone.active ? 'rgba(22,163,74,0.15)' : 'rgba(100,116,139,0.15)',
-                color: zone.active ? '#4ade80' : '#64748b'
-              }}>{zone.active ? '💧 ON' : 'OFF'}</span>
-            </div>
-          ))}
+          <div style={{
+            padding: '14px', background: '#0f172a', borderRadius: '8px',
+            border: `1px solid ${sensorData.irrigation.zone1 ? '#16a34a44' : '#334155'}`,
+            display: 'flex', alignItems: 'center', justifyContent: 'space-between'
+          }}>
+            <span style={{ color: '#94a3b8', fontSize: '0.85rem' }}>Zone 1 — North Field</span>
+            <span style={{
+              padding: '3px 10px', borderRadius: '20px', fontSize: '0.75rem', fontWeight: 700,
+              background: sensorData.irrigation.zone1 ? 'rgba(22,163,74,0.15)' : 'rgba(100,116,139,0.15)',
+              color: sensorData.irrigation.zone1 ? '#4ade80' : '#64748b'
+            }}>{sensorData.irrigation.zone1 ? '💧 ON' : 'OFF'}</span>
+          </div>
           <div style={{ padding: '14px', background: '#0f172a', borderRadius: '8px', border: '1px solid #334155' }}>
             <div style={{ color: '#64748b', fontSize: '0.75rem', marginBottom: '4px' }}>Water Flow</div>
             <div style={{ color: '#3b82f6', fontSize: '1.1rem', fontWeight: 700 }}>{sensorData.irrigation.waterFlow} L/min</div>
