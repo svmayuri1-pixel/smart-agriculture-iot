@@ -40,6 +40,7 @@ module.exports = function (io) {
         'farm/pest/detection',
         'farm/intrusion/alert',
         'farm/cameras/status',
+        'farm/inventory/storage',
       ], (err) => {
         if (err) console.error('MQTT subscribe error:', err);
         else console.log('📡 Subscribed to all farm topics');
@@ -152,6 +153,19 @@ module.exports = function (io) {
           };
           io.emit('camera_update', liveData.cameras[camId]);
           console.log(`📷 Camera ${camId}: ${data.status} — ${data.streamUrl}`);
+        }
+
+        // ── Inventory storage (HC-SR04) ───────────────────────────────
+        else if (topic === 'farm/inventory/storage') {
+          liveData.storage = {
+            storageLevel: data.storageLevel,
+            distanceCm:   data.distanceCm,
+            deviceId:     data.deviceId,
+            lastUpdated:  new Date().toISOString(),
+          };
+          // Broadcast to all dashboard clients
+          io.emit('mqtt_message', { topic, data });
+          console.log(`📦 Storage: ${data.storageLevel}% (dist: ${data.distanceCm}cm)`);
         }
 
         // Forward raw message to all clients
