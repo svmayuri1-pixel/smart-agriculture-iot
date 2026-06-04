@@ -14,7 +14,7 @@ export default function TrackPage() {
   const [accuracy, setAccuracy]     = useState(null);
   const [connected, setConnected]   = useState(false);
   const [updateCount, setUpdateCount] = useState(0);
-  const [deviceName, setDeviceName] = useState('My Phone');
+  const [deviceName, setDeviceName] = useState('Vehicle');
   const [deviceId, setDeviceId]     = useState('PHONE-GPS-01');
 
   const watchId  = useRef(null);
