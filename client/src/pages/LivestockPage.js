@@ -1,36 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useSensor } from '../context/SensorContext';
-import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
-import L from 'leaflet';
-import 'leaflet/dist/leaflet.css';
 import { io } from 'socket.io-client';
-
-delete L.Icon.Default.prototype._getIconUrl;
-L.Icon.Default.mergeOptions({
-  iconRetinaUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png',
-  iconUrl:       'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
-  shadowUrl:     'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
-});
-
-function makeIcon(color) {
-  return L.divIcon({
-    className: '',
-    html: `<div style="
-      width:34px;height:34px;border-radius:50%;
-      background:${color};border:3px solid #fff;
-      box-shadow:0 2px 12px rgba(0,0,0,0.5);
-      display:flex;align-items:center;justify-content:center;
-      font-size:16px;
-    ">🐄</div>`,
-    iconSize: [34, 34], iconAnchor: [17, 17], popupAnchor: [0, -20],
-  });
-}
-
-function MapController({ center }) {
-  const map = useMap();
-  useEffect(() => { map.setView(center, map.getZoom()); }, [center, map]);
-  return null;
-}
 
 // Detection log entry
 function LogEntry({ entry }) {
@@ -60,10 +30,9 @@ export default function LivestockPage() {
   const { sensorData } = useSensor();
   const intrusion = sensorData.intrusion;
 
-  const [motionData, setMotionData]   = useState(null);   // latest from socket
+  const [motionData, setMotionData]   = useState(null);
   const [detectionLog, setDetectionLog] = useState([]);
   const [sensorConnected, setSensorConnected] = useState(false);
-  const [mapCenter, setMapCenter]     = useState([11.0168, 76.9558]);
 
   // Subscribe to real-time motion updates via socket
   useEffect(() => {
@@ -95,8 +64,7 @@ export default function LivestockPage() {
 
   // Use socket data if available, else fallback to context
   const motion = motionData || intrusion;
-  const isDetected = motion?.detected || false;
-  const zone       = motion?.zone || 'Livestock Area';
+  const isDetected  = motion?.detected || false;
   const motionCount = motionData?.motionCount ?? '--';
 
   return (
@@ -129,23 +97,22 @@ export default function LivestockPage() {
       </div>
 
       {/* Top stat cards */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '14px', marginBottom: '24px' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '14px', marginBottom: '24px' }}>
         {/* Detection status */}
         <div style={{
           background: '#1e293b',
           border: `1px solid ${isDetected ? '#ef444444' : '#16a34a33'}`,
           borderRadius: '12px', padding: '20px',
           boxShadow: isDetected ? '0 0 24px rgba(239,68,68,0.15)' : 'none',
-          gridColumn: 'span 2'
+          gridColumn: 'span 1'
         }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
             <div style={{
-              width: '60px', height: '60px', borderRadius: '50%',
+              width: '54px', height: '54px', borderRadius: '50%',
               background: isDetected ? 'rgba(239,68,68,0.15)' : 'rgba(22,163,74,0.15)',
               border: `2px solid ${isDetected ? '#ef4444' : '#16a34a'}`,
               display: 'flex', alignItems: 'center', justifyContent: 'center',
-              fontSize: '1.8rem',
-              animation: isDetected ? 'pulse-red 1.5s infinite' : 'none'
+              fontSize: '1.6rem',
             }}>
               {isDetected ? '🐄' : '🌿'}
             </div>
@@ -153,11 +120,8 @@ export default function LivestockPage() {
               <div style={{ color: '#64748b', fontSize: '0.72rem', fontWeight: 600, textTransform: 'uppercase', marginBottom: '4px' }}>
                 Detection Status
               </div>
-              <div style={{ color: isDetected ? '#f87171' : '#4ade80', fontSize: '1.4rem', fontWeight: 800 }}>
+              <div style={{ color: isDetected ? '#f87171' : '#4ade80', fontSize: '1.2rem', fontWeight: 800 }}>
                 {isDetected ? 'Animal Detected!' : 'Area Clear'}
-              </div>
-              <div style={{ color: '#475569', fontSize: '0.75rem', marginTop: '2px' }}>
-                Zone: {zone}
               </div>
             </div>
           </div>
@@ -192,10 +156,8 @@ export default function LivestockPage() {
         </div>
       </div>
 
-      {/* Main: Detection Panel + Map */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', marginBottom: '20px' }}>
-
-        {/* Detection Panel */}
+      {/* Detection Panel — full width, no map */}
+      <div style={{ marginBottom: '20px' }}>
         <div style={{
           background: '#1e293b',
           border: `1px solid ${isDetected ? '#ef444433' : '#334155'}`,
@@ -207,12 +169,11 @@ export default function LivestockPage() {
 
           {/* Big visual indicator */}
           <div style={{
-            padding: '28px', background: '#0f172a', borderRadius: '14px',
+            padding: '36px', background: '#0f172a', borderRadius: '14px',
             textAlign: 'center', marginBottom: '20px',
             border: `2px solid ${isDetected ? '#ef444455' : '#16a34a33'}`,
             position: 'relative', overflow: 'hidden'
           }}>
-            {/* Ripple effect when detected */}
             {isDetected && (
               <div style={{
                 position: 'absolute', inset: 0,
@@ -220,13 +181,10 @@ export default function LivestockPage() {
                 animation: 'ripple 2s infinite'
               }} />
             )}
-            <div style={{ fontSize: '3.5rem', marginBottom: '10px' }}>
+            <div style={{ fontSize: '4rem', marginBottom: '12px' }}>
               {isDetected ? '🐄' : '🌿'}
             </div>
-            <div style={{
-              fontSize: '1.2rem', fontWeight: 800,
-              color: isDetected ? '#f87171' : '#4ade80'
-            }}>
+            <div style={{ fontSize: '1.4rem', fontWeight: 800, color: isDetected ? '#f87171' : '#4ade80' }}>
               {isDetected ? '⚠️ Motion Detected!' : '✅ No Motion'}
             </div>
             <div style={{ color: '#64748b', fontSize: '0.78rem', marginTop: '6px' }}>
@@ -234,8 +192,20 @@ export default function LivestockPage() {
             </div>
           </div>
 
-          {/* Signal row */}
+          {/* Signal rows — only sensor status + motion signal */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+            <div style={{
+              display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+              padding: '12px 14px', background: '#0f172a', borderRadius: '10px'
+            }}>
+              <span style={{ color: '#64748b', fontSize: '0.82rem' }}>📡 Sensor Status</span>
+              <span style={{
+                padding: '3px 12px', borderRadius: '20px', fontSize: '0.78rem', fontWeight: 700,
+                background: sensorConnected ? 'rgba(22,163,74,0.15)' : 'rgba(100,116,139,0.15)',
+                color: sensorConnected ? '#4ade80' : '#64748b'
+              }}>{sensorConnected ? '● Active' : '○ Offline'}</span>
+            </div>
+
             <div style={{
               display: 'flex', alignItems: 'center', justifyContent: 'space-between',
               padding: '12px 14px', background: '#0f172a', borderRadius: '10px'
@@ -246,24 +216,6 @@ export default function LivestockPage() {
                 background: isDetected ? 'rgba(239,68,68,0.15)' : 'rgba(100,116,139,0.15)',
                 color: isDetected ? '#f87171' : '#64748b'
               }}>{isDetected ? '🔴 HIGH' : '⚫ LOW'}</span>
-            </div>
-
-            <div style={{
-              display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-              padding: '12px 14px', background: '#0f172a', borderRadius: '10px'
-            }}>
-              <span style={{ color: '#64748b', fontSize: '0.82rem' }}>🐾 Detected Type</span>
-              <span style={{ color: '#e2e8f0', fontSize: '0.82rem', fontWeight: 600 }}>
-                {isDetected ? (motion?.type || 'Livestock') : '—'}
-              </span>
-            </div>
-
-            <div style={{
-              display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-              padding: '12px 14px', background: '#0f172a', borderRadius: '10px'
-            }}>
-              <span style={{ color: '#64748b', fontSize: '0.82rem' }}>📍 Zone</span>
-              <span style={{ color: '#e2e8f0', fontSize: '0.82rem', fontWeight: 600 }}>{zone}</span>
             </div>
 
             <div style={{
@@ -289,12 +241,12 @@ export default function LivestockPage() {
                 ⚠️ Alert: Animal Detected!
               </div>
               <div style={{ color: '#f87171', fontSize: '0.78rem', lineHeight: 1.5 }}>
-                Motion detected in {zone}. Check the livestock area immediately.
+                Motion detected in Livestock Area. Check immediately.
               </div>
             </div>
           )}
 
-          {/* Wiring guide */}
+          {/* Wiring guide when offline */}
           {!sensorConnected && (
             <div style={{
               marginTop: '16px', padding: '14px',
@@ -306,57 +258,12 @@ export default function LivestockPage() {
                 🔌 HC-SR501 Wiring
               </div>
               <div style={{ color: '#475569', fontSize: '0.75rem', lineHeight: 1.9 }}>
-                PIR VCC  → ESP32 <strong style={{ color: '#94a3b8' }}>5V (Vin)</strong><br/>
-                PIR GND  → ESP32 <strong style={{ color: '#94a3b8' }}>GND</strong><br/>
-                PIR OUT  → ESP32 <strong style={{ color: '#94a3b8' }}>GPIO 14</strong>
+                PIR VCC → ESP32 <strong style={{ color: '#94a3b8' }}>5V (Vin)</strong><br/>
+                PIR GND → ESP32 <strong style={{ color: '#94a3b8' }}>GND</strong><br/>
+                PIR OUT → ESP32 <strong style={{ color: '#94a3b8' }}>GPIO 14</strong>
               </div>
             </div>
           )}
-        </div>
-
-        {/* Map */}
-        <div style={{ background: '#1e293b', border: '1px solid #334155', borderRadius: '12px', overflow: 'hidden' }}>
-          <div style={{ padding: '14px 16px', borderBottom: '1px solid #334155', display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <span>🗺️</span>
-            <span style={{ color: '#e2e8f0', fontSize: '0.9rem', fontWeight: 600 }}>Sensor Location Map</span>
-            <span style={{
-              marginLeft: 'auto', padding: '2px 10px', borderRadius: '20px', fontSize: '0.7rem', fontWeight: 700,
-              background: isDetected ? 'rgba(239,68,68,0.15)' : 'rgba(22,163,74,0.15)',
-              color: isDetected ? '#f87171' : '#4ade80'
-            }}>{isDetected ? '● DETECTED' : '● CLEAR'}</span>
-          </div>
-          <div style={{ height: '360px' }}>
-            <MapContainer center={mapCenter} zoom={15} style={{ height: '100%', width: '100%' }} scrollWheelZoom>
-              <TileLayer
-                attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-                url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-              />
-              <MapController center={mapCenter} />
-              <Marker position={mapCenter} icon={makeIcon(isDetected ? '#ef4444' : '#16a34a')}>
-                <Popup>
-                  <div style={{ minWidth: '150px' }}>
-                    <strong>{isDetected ? '🐄 Animal Detected!' : '✅ Area Clear'}</strong>
-                    <div style={{ fontSize: '0.8rem', marginTop: '4px', color: '#555' }}>
-                      Zone: {zone}
-                    </div>
-                    <div style={{ fontSize: '0.8rem', color: '#555' }}>
-                      PIR Signal: {isDetected ? '🔴 HIGH' : '⚫ LOW'}
-                    </div>
-                  </div>
-                </Popup>
-              </Marker>
-            </MapContainer>
-          </div>
-          <div style={{ padding: '10px 16px', borderTop: '1px solid #334155', display: 'flex', gap: '16px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <div style={{ width: '10px', height: '10px', borderRadius: '50%', background: '#16a34a' }} />
-              <span style={{ color: '#94a3b8', fontSize: '0.75rem' }}>Clear</span>
-            </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <div style={{ width: '10px', height: '10px', borderRadius: '50%', background: '#ef4444' }} />
-              <span style={{ color: '#94a3b8', fontSize: '0.75rem' }}>Animal Detected</span>
-            </div>
-          </div>
         </div>
       </div>
 
