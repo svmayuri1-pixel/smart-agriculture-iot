@@ -15,9 +15,42 @@ const realData = {
   cameras:   {}
 };
 
+// Irrigation relay state — can be manually overridden or auto-controlled
+const relayState = {
+  irrigationRelay: false,   // true = ON, false = OFF
+  mode: 'auto',             // 'auto' or 'manual'
+  lastUpdated: null
+};
+
+const SOIL_MOISTURE_LOW_THRESHOLD  = 30;  // below this → relay ON
+const SOIL_MOISTURE_HIGH_THRESHOLD = 60;  // above this → relay OFF
+
+function getRelayState() { return relayState; }
+
+function setRelayState(on, mode = 'manual') {
+  relayState.irrigationRelay = on;
+  relayState.mode = mode;
+  relayState.lastUpdated = new Date().toISOString();
+}
+
+function autoUpdateRelay(soilMoisture) {
+  if (relayState.mode !== 'auto') return;
+  if (soilMoisture === null || soilMoisture === undefined) return;
+  if (soilMoisture < SOIL_MOISTURE_LOW_THRESHOLD) {
+    relayState.irrigationRelay = true;
+  } else if (soilMoisture > SOIL_MOISTURE_HIGH_THRESHOLD) {
+    relayState.irrigationRelay = false;
+  }
+  relayState.lastUpdated = new Date().toISOString();
+}
+
 // Update real data when MQTT message arrives
 function updateRealData(type, data) {
   realData[type] = { ...data, isReal: true, lastUpdated: new Date().toISOString() };
+  // Auto-update relay based on soil moisture
+  if (type === 'field' && data.soilMoisture !== undefined) {
+    autoUpdateRelay(data.soilMoisture);
+  }
 }
 
 function updateRealVehicle(id, data) {
@@ -97,5 +130,8 @@ module.exports = {
   updateRealVehicle,
   updateRealLivestock,
   updateRealCamera,
+  getRelayState,
+  setRelayState,
+  autoUpdateRelay,
   realData
 };

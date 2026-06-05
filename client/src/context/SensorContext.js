@@ -23,8 +23,15 @@ export function SensorProvider({ children }) {
   const [connected, setConnected]   = useState(false);
   const [sensorOnline, setSensorOnline] = useState(false);
   const [history, setHistory]       = useState([]);
+  const [relay, setRelay]           = useState({ irrigationRelay: false, mode: 'auto', lastUpdated: null });
 
   useEffect(() => {
+    // Fetch initial relay state
+    fetch('/api/sensors/relay')
+      .then(r => r.json())
+      .then(setRelay)
+      .catch(() => {});
+
     const socket = io('/', { transports: ['websocket', 'polling'] });
 
     socket.on('connect', () => setConnected(true));
@@ -87,11 +94,46 @@ export function SensorProvider({ children }) {
       setSensorData(prev => ({ ...prev, intrusion: data }));
     });
 
+    // Relay update
+    socket.on('relay_update', (data) => {
+      setRelay(data);
+    });
+
     return () => { socket.disconnect(); };
   }, []);
 
+  // Toggle relay manually from UI
+  async function toggleRelay(on) {
+    try {
+      const res = await fetch('/api/sensors/relay', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ on })
+      });
+      const data = await res.json();
+      setRelay(data);
+    } catch (e) {
+      console.error('Relay toggle failed', e);
+    }
+  }
+
+  // Switch auto/manual mode
+  async function setRelayMode(mode) {
+    try {
+      const res = await fetch('/api/sensors/relay/mode', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ mode })
+      });
+      const data = await res.json();
+      setRelay(data);
+    } catch (e) {
+      console.error('Relay mode change failed', e);
+    }
+  }
+
   return (
-    <SensorContext.Provider value={{ sensorData, connected, sensorOnline, history }}>
+    <SensorContext.Provider value={{ sensorData, connected, sensorOnline, history, relay, toggleRelay, setRelayMode }}>
       {children}
     </SensorContext.Provider>
   );

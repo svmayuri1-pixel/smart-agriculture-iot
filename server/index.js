@@ -18,6 +18,9 @@ const io = new Server(server, {
 app.use(cors());
 app.use(express.json());
 
+// Make io accessible in routes
+app.set('io', io);
+
 // Routes
 app.use('/api/auth', require('./routes/auth'));
 app.use('/api/sensors', require('./routes/sensors'));
@@ -90,10 +93,15 @@ io.on('connection', (socket) => {
 });
 
 // Simulate real-time sensor data every 5 seconds
-const { simulateSensorData } = require('./utils/simulator');
+const { simulateSensorData, getRelayState, autoUpdateRelay } = require('./utils/simulator');
 setInterval(() => {
   const data = simulateSensorData();
-  io.emit('sensor_update', data);
+  // Auto-update relay based on real soil moisture
+  if (data.field && data.field.soilMoisture !== null) {
+    autoUpdateRelay(data.field.soilMoisture);
+  }
+  io.emit('sensor_update', { ...data, relay: getRelayState() });
+  io.emit('relay_update', getRelayState());
 }, 5000);
 
 const PORT = process.env.PORT || 3000;
