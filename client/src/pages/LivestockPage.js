@@ -78,10 +78,15 @@ export default function LivestockPage() {
 
   const saveCamUrl = () => {
     const url = inputUrl.trim();
-    setCamUrl(url);
+    // Auto-use proxy for http:// URLs to fix HTTPS mixed content
+    const proxyUrl = url.startsWith('http://')
+      ? `/api/cameras/proxy-stream?url=${encodeURIComponent(url)}`
+      : url;
+    setCamUrl(proxyUrl);
     setCamError(false);
     setEditingCam(false);
-    localStorage.setItem('livestock_cam_url', url);
+    localStorage.setItem('livestock_cam_url', proxyUrl);
+    localStorage.setItem('livestock_cam_raw_url', url);
   };
 
   return (
