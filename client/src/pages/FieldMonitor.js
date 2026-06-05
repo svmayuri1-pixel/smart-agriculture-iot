@@ -177,7 +177,7 @@ export default function FieldMonitor() {
         <p style={{ color: '#64748b', fontSize: '0.85rem', marginTop: '4px' }}>Real-time soil and environmental data</p>
       </div>
 
-      {/* Gauges — pH removed */}
+      {/* Gauges + Relay card same row */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: '14px', marginBottom: '24px' }}>
         <GaugeCard icon="💧" label="Soil Moisture" value={f.soilMoisture} max={100} unit="%" color="#3b82f6"
           description={f.soilMoisture < 30 ? '⚠️ Needs irrigation' : f.soilMoisture > 70 ? '✓ Well watered' : '✓ Optimal'} />
@@ -185,15 +185,65 @@ export default function FieldMonitor() {
           description="Relative humidity" />
         <GaugeCard icon="☀️" label="Light"          value={f.lightIntensity} max={1200} unit="lux" color="#fbbf24"
           description="Solar radiation" />
-      </div>
 
-      {/* Irrigation Relay Button */}
-      <RelayButton
-        relay={safeRelay}
-        soilMoisture={f.soilMoisture}
-        toggleRelay={toggleRelay || (() => {})}
-        setRelayMode={setRelayMode || (() => {})}
-      />
+        {/* Relay card — same size as gauge cards */}
+        <div style={{
+          background: '#1e293b',
+          border: `1px solid ${safeRelay.irrigationRelay ? '#16a34a' : '#ef4444'}`,
+          borderRadius: '12px', padding: '20px', textAlign: 'center',
+          display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'space-between'
+        }}>
+          {/* Label */}
+          <div style={{ color: '#64748b', fontSize: '0.75rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '10px' }}>
+            Relay
+          </div>
+
+          {/* Big round toggle button */}
+          <button
+            onClick={() => {
+              if (safeRelay.mode === 'auto') {
+                (setRelayMode || (() => {}))('manual');
+              }
+              (toggleRelay || (() => {}))(!safeRelay.irrigationRelay);
+            }}
+            style={{
+              width: '72px', height: '72px', borderRadius: '50%', border: 'none',
+              cursor: 'pointer',
+              background: safeRelay.irrigationRelay
+                ? 'radial-gradient(circle, #16a34a, #15803d)'
+                : 'radial-gradient(circle, #dc2626, #b91c1c)',
+              color: '#fff', fontSize: '1.6rem',
+              boxShadow: safeRelay.irrigationRelay
+                ? '0 0 18px rgba(22,163,74,0.7)'
+                : '0 0 18px rgba(220,38,38,0.6)',
+              transition: 'all 0.3s',
+              marginBottom: '10px'
+            }}
+            aria-label={`Irrigation relay ${safeRelay.irrigationRelay ? 'ON' : 'OFF'}`}
+          >
+            {safeRelay.irrigationRelay ? '💧' : '🚫'}
+          </button>
+
+          {/* ON / OFF status text */}
+          <div style={{
+            fontSize: '0.8rem', fontWeight: 700,
+            color: safeRelay.irrigationRelay ? '#4ade80' : '#ef4444',
+            marginBottom: '6px'
+          }}>
+            {safeRelay.irrigationRelay ? 'ON' : 'OFF'}
+          </div>
+
+          {/* Auto / Manual badge */}
+          <div style={{
+            fontSize: '0.68rem', padding: '2px 8px', borderRadius: '20px',
+            background: safeRelay.mode === 'auto' ? 'rgba(59,130,246,0.15)' : 'rgba(251,191,36,0.15)',
+            color: safeRelay.mode === 'auto' ? '#60a5fa' : '#fbbf24',
+            border: `1px solid ${safeRelay.mode === 'auto' ? '#3b82f6' : '#fbbf24'}`
+          }}>
+            {safeRelay.mode === 'auto' ? '⚙️ Auto' : '🖐 Manual'}
+          </div>
+        </div>
+      </div>
 
       {/* Chart — full width */}
       <div style={{ marginBottom: '24px' }}>
