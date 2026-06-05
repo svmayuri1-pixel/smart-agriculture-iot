@@ -1,6 +1,6 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useSensor } from '../context/SensorContext';
-import { RadialBarChart, RadialBar, ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip, CartesianGrid } from 'recharts';
+import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip, CartesianGrid } from 'recharts';
 
 function GaugeCard({ label, value, max, unit, color, icon, description }) {
   const pct = Math.min((value / max) * 100, 100);
@@ -9,7 +9,6 @@ function GaugeCard({ label, value, max, unit, color, icon, description }) {
     <div style={{ background: '#1e293b', border: '1px solid #334155', borderRadius: '12px', padding: '20px', textAlign: 'center' }}>
       <div style={{ fontSize: '1.5rem', marginBottom: '8px' }}>{icon}</div>
       <div style={{ color: '#64748b', fontSize: '0.75rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '12px' }}>{label}</div>
-      {/* Simple arc gauge */}
       <div style={{ position: 'relative', width: '120px', height: '70px', margin: '0 auto 12px' }}>
         <svg viewBox="0 0 120 70" style={{ width: '100%', height: '100%' }}>
           <path d="M 10 65 A 50 50 0 0 1 110 65" fill="none" stroke="#334155" strokeWidth="10" strokeLinecap="round" />
@@ -26,149 +25,72 @@ function GaugeCard({ label, value, max, unit, color, icon, description }) {
   );
 }
 
-/* ─── Relay Button Component ─────────────────────────── */
-function RelayButton({ relay, soilMoisture, toggleRelay, setRelayMode }) {
-  const isOn = relay.irrigationRelay;
-  const isAuto = relay.mode === 'auto';
-
-  // Determine soil moisture status
-  const soilLow  = soilMoisture !== null && soilMoisture < 30;
-  const soilHigh = soilMoisture !== null && soilMoisture > 60;
-
+/* ── Simple ON/OFF toggle card (Relay & Motor share this) ── */
+function ToggleCard({ label, icon, isOn, onToggle }) {
   return (
     <div style={{
       background: '#1e293b',
-      border: `1px solid ${isOn ? '#16a34a' : '#dc2626'}`,
-      borderRadius: '12px',
-      padding: '20px',
-      marginBottom: '24px'
+      border: `2px solid ${isOn ? '#16a34a' : '#ef4444'}`,
+      borderRadius: '12px', padding: '20px', textAlign: 'center',
+      display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '10px'
     }}>
-      {/* Header */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px', flexWrap: 'wrap', gap: '10px' }}>
-        <div>
-          <h3 style={{ color: '#e2e8f0', fontSize: '0.95rem', fontWeight: 700, margin: 0 }}>
-            🔌 Irrigation Relay Control
-          </h3>
-          <p style={{ color: '#64748b', fontSize: '0.75rem', margin: '4px 0 0' }}>
-            Soil moisture based automatic switching
-          </p>
-        </div>
-
-        {/* Auto / Manual Mode toggle */}
-        <div style={{ display: 'flex', gap: '8px' }}>
-          <button
-            onClick={() => setRelayMode('auto')}
-            style={{
-              padding: '6px 14px', borderRadius: '20px', border: 'none', cursor: 'pointer',
-              fontSize: '0.75rem', fontWeight: 700,
-              background: isAuto ? 'rgba(59,130,246,0.2)' : '#0f172a',
-              color: isAuto ? '#60a5fa' : '#64748b',
-              outline: isAuto ? '1px solid #3b82f6' : '1px solid #334155',
-              transition: 'all 0.2s'
-            }}
-          >⚙️ Auto</button>
-          <button
-            onClick={() => setRelayMode('manual')}
-            style={{
-              padding: '6px 14px', borderRadius: '20px', border: 'none', cursor: 'pointer',
-              fontSize: '0.75rem', fontWeight: 700,
-              background: !isAuto ? 'rgba(251,191,36,0.15)' : '#0f172a',
-              color: !isAuto ? '#fbbf24' : '#64748b',
-              outline: !isAuto ? '1px solid #fbbf24' : '1px solid #334155',
-              transition: 'all 0.2s'
-            }}
-          >🖐 Manual</button>
-        </div>
+      {/* Label */}
+      <div style={{ color: '#64748b', fontSize: '0.75rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+        {icon} {label}
       </div>
 
-      {/* Main relay button + status */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: '20px', flexWrap: 'wrap' }}>
+      {/* Round toggle button */}
+      <button
+        onClick={onToggle}
+        style={{
+          width: '70px', height: '70px', borderRadius: '50%', border: 'none',
+          cursor: 'pointer',
+          background: isOn
+            ? 'radial-gradient(circle, #16a34a, #15803d)'
+            : 'radial-gradient(circle, #dc2626, #b91c1c)',
+          color: '#fff', fontSize: '1.7rem',
+          boxShadow: isOn
+            ? '0 0 20px rgba(22,163,74,0.8)'
+            : '0 0 20px rgba(220,38,38,0.7)',
+          transition: 'all 0.25s'
+        }}
+      >
+        {isOn ? '✅' : '❌'}
+      </button>
 
-        {/* Big relay toggle button */}
-        <button
-          onClick={() => toggleRelay(!isOn)}
-          disabled={isAuto}
-          title={isAuto ? 'Switch to Manual mode to control manually' : (isOn ? 'Click to turn OFF' : 'Click to turn ON')}
-          style={{
-            width: '90px', height: '90px', borderRadius: '50%', border: 'none',
-            cursor: isAuto ? 'not-allowed' : 'pointer',
-            background: isOn
-              ? 'radial-gradient(circle, #16a34a, #15803d)'
-              : 'radial-gradient(circle, #dc2626, #b91c1c)',
-            color: '#fff',
-            fontSize: '2rem',
-            boxShadow: isOn
-              ? '0 0 20px rgba(22,163,74,0.6), 0 0 40px rgba(22,163,74,0.2)'
-              : '0 0 20px rgba(220,38,38,0.5), 0 0 40px rgba(220,38,38,0.2)',
-            opacity: isAuto ? 0.75 : 1,
-            transition: 'all 0.3s',
-            flexShrink: 0
-          }}
-          aria-label={`Irrigation relay is ${isOn ? 'ON' : 'OFF'}. ${isAuto ? 'Auto mode active.' : 'Click to toggle.'}`}
-        >
-          {isOn ? '💧' : '🚫'}
-        </button>
-
-        {/* Status info */}
-        <div style={{ flex: 1, minWidth: '160px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '10px' }}>
-            {/* ON/OFF indicator */}
-            <span style={{
-              display: 'inline-block', width: '12px', height: '12px', borderRadius: '50%',
-              background: isOn ? '#4ade80' : '#ef4444',
-              boxShadow: isOn ? '0 0 8px #4ade80' : '0 0 8px #ef4444',
-              flexShrink: 0
-            }} />
-            <span style={{ color: isOn ? '#4ade80' : '#ef4444', fontWeight: 700, fontSize: '1.1rem' }}>
-              {isOn ? 'RELAY ON — Irrigating' : 'RELAY OFF — Idle'}
-            </span>
-          </div>
-
-          {/* Soil moisture reason */}
-          <div style={{
-            padding: '8px 12px', borderRadius: '8px',
-            background: soilLow ? 'rgba(239,68,68,0.1)' : soilHigh ? 'rgba(34,197,94,0.1)' : 'rgba(100,116,139,0.1)',
-            border: `1px solid ${soilLow ? '#ef4444' : soilHigh ? '#22c55e' : '#334155'}`,
-            fontSize: '0.78rem', color: '#94a3b8'
-          }}>
-            {soilMoisture === null
-              ? '⏳ Waiting for sensor data…'
-              : soilLow
-                ? `⚠️ Soil moisture low (${soilMoisture}%) — Relay auto ON`
-                : soilHigh
-                  ? `✅ Soil moisture high (${soilMoisture}%) — Relay auto OFF`
-                  : `💧 Soil moisture OK (${soilMoisture}%) — Monitoring`
-            }
-          </div>
-
-          {/* Mode label */}
-          <div style={{ marginTop: '8px', color: '#64748b', fontSize: '0.72rem' }}>
-            Mode: <strong style={{ color: isAuto ? '#60a5fa' : '#fbbf24' }}>
-              {isAuto ? 'AUTO (soil moisture controlled)' : 'MANUAL (user controlled)'}
-            </strong>
-          </div>
-        </div>
+      {/* Status */}
+      <div style={{ fontSize: '0.85rem', fontWeight: 700, color: isOn ? '#4ade80' : '#ef4444' }}>
+        {isOn ? 'ON' : 'OFF'}
       </div>
 
-      {/* Thresholds info */}
+      {/* Dot indicator */}
       <div style={{
-        marginTop: '16px', padding: '10px 14px', borderRadius: '8px',
-        background: '#0f172a', border: '1px solid #1e293b',
-        display: 'flex', gap: '20px', flexWrap: 'wrap', fontSize: '0.75rem', color: '#64748b'
-      }}>
-        <span>🔴 Relay ON  when soil &lt; <strong style={{ color: '#f87171' }}>30%</strong></span>
-        <span>🟢 Relay OFF when soil &gt; <strong style={{ color: '#4ade80' }}>60%</strong></span>
-      </div>
+        width: '10px', height: '10px', borderRadius: '50%',
+        background: isOn ? '#4ade80' : '#ef4444',
+        boxShadow: isOn ? '0 0 8px #4ade80' : '0 0 8px #ef4444'
+      }} />
     </div>
   );
 }
 
 export default function FieldMonitor() {
-  const { sensorData, history, relay, toggleRelay, setRelayMode } = useSensor();
+  const { sensorData, history } = useSensor();
   const f = sensorData.field;
 
-  // Safe relay object — never undefined
-  const safeRelay = relay || { irrigationRelay: false, mode: 'auto', lastUpdated: null };
+  // Local ON/OFF state for Relay and Motor
+  const soilMoisture = f.soilMoisture;
+  const autoRelayOn  = soilMoisture !== null && soilMoisture < 30;
+
+  const [relayOn, setRelayOn] = useState(false);
+  const [motorOn, setMotorOn] = useState(false);
+
+  // Auto-sync relay with soil moisture
+  React.useEffect(() => {
+    if (soilMoisture !== null) {
+      setRelayOn(soilMoisture < 30);
+      setMotorOn(soilMoisture < 30);
+    }
+  }, [soilMoisture]);
 
   return (
     <div className="fade-in">
@@ -177,75 +99,20 @@ export default function FieldMonitor() {
         <p style={{ color: '#64748b', fontSize: '0.85rem', marginTop: '4px' }}>Real-time soil and environmental data</p>
       </div>
 
-      {/* Gauges + Relay card same row */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: '14px', marginBottom: '24px' }}>
+      {/* 5 cards — Soil Moisture, Humidity, Light, Relay, Motor */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(155px, 1fr))', gap: '14px', marginBottom: '24px' }}>
         <GaugeCard icon="💧" label="Soil Moisture" value={f.soilMoisture} max={100} unit="%" color="#3b82f6"
           description={f.soilMoisture < 30 ? '⚠️ Needs irrigation' : f.soilMoisture > 70 ? '✓ Well watered' : '✓ Optimal'} />
-        <GaugeCard icon="💦" label="Humidity"       value={f.humidity}     max={100} unit="%" color="#06b6d4"
+        <GaugeCard icon="💦" label="Humidity"      value={f.humidity}      max={100} unit="%" color="#06b6d4"
           description="Relative humidity" />
-        <GaugeCard icon="☀️" label="Light"          value={f.lightIntensity} max={1200} unit="lux" color="#fbbf24"
+        <GaugeCard icon="☀️" label="Light"         value={f.lightIntensity} max={1200} unit="lux" color="#fbbf24"
           description="Solar radiation" />
 
-        {/* Relay card — same size as gauge cards */}
-        <div style={{
-          background: '#1e293b',
-          border: `1px solid ${safeRelay.irrigationRelay ? '#16a34a' : '#ef4444'}`,
-          borderRadius: '12px', padding: '20px', textAlign: 'center',
-          display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'space-between'
-        }}>
-          {/* Label */}
-          <div style={{ color: '#64748b', fontSize: '0.75rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '10px' }}>
-            Relay
-          </div>
-
-          {/* Big round toggle button */}
-          <button
-            onClick={() => {
-              if (safeRelay.mode === 'auto') {
-                (setRelayMode || (() => {}))('manual');
-              }
-              (toggleRelay || (() => {}))(!safeRelay.irrigationRelay);
-            }}
-            style={{
-              width: '72px', height: '72px', borderRadius: '50%', border: 'none',
-              cursor: 'pointer',
-              background: safeRelay.irrigationRelay
-                ? 'radial-gradient(circle, #16a34a, #15803d)'
-                : 'radial-gradient(circle, #dc2626, #b91c1c)',
-              color: '#fff', fontSize: '1.6rem',
-              boxShadow: safeRelay.irrigationRelay
-                ? '0 0 18px rgba(22,163,74,0.7)'
-                : '0 0 18px rgba(220,38,38,0.6)',
-              transition: 'all 0.3s',
-              marginBottom: '10px'
-            }}
-            aria-label={`Irrigation relay ${safeRelay.irrigationRelay ? 'ON' : 'OFF'}`}
-          >
-            {safeRelay.irrigationRelay ? '💧' : '🚫'}
-          </button>
-
-          {/* ON / OFF status text */}
-          <div style={{
-            fontSize: '0.8rem', fontWeight: 700,
-            color: safeRelay.irrigationRelay ? '#4ade80' : '#ef4444',
-            marginBottom: '6px'
-          }}>
-            {safeRelay.irrigationRelay ? 'ON' : 'OFF'}
-          </div>
-
-          {/* Auto / Manual badge */}
-          <div style={{
-            fontSize: '0.68rem', padding: '2px 8px', borderRadius: '20px',
-            background: safeRelay.mode === 'auto' ? 'rgba(59,130,246,0.15)' : 'rgba(251,191,36,0.15)',
-            color: safeRelay.mode === 'auto' ? '#60a5fa' : '#fbbf24',
-            border: `1px solid ${safeRelay.mode === 'auto' ? '#3b82f6' : '#fbbf24'}`
-          }}>
-            {safeRelay.mode === 'auto' ? '⚙️ Auto' : '🖐 Manual'}
-          </div>
-        </div>
+        <ToggleCard label="Relay"  icon="🔌" isOn={relayOn} onToggle={() => setRelayOn(v => !v)} />
+        <ToggleCard label="Motor"  icon="⚙️" isOn={motorOn} onToggle={() => setMotorOn(v => !v)} />
       </div>
 
-      {/* Chart — full width */}
+      {/* Chart */}
       <div style={{ marginBottom: '24px' }}>
         <div style={{ background: '#1e293b', border: '1px solid #334155', borderRadius: '12px', padding: '20px' }}>
           <h3 style={{ color: '#e2e8f0', fontSize: '0.95rem', fontWeight: 600, marginBottom: '16px' }}>📊 Sensor History</h3>
@@ -272,7 +139,7 @@ export default function FieldMonitor() {
         </div>
       </div>
 
-      {/* Irrigation Status — Zone 1 only */}
+      {/* Irrigation Status */}
       <div style={{ background: '#1e293b', border: '1px solid #334155', borderRadius: '12px', padding: '20px' }}>
         <h3 style={{ color: '#e2e8f0', fontSize: '0.95rem', fontWeight: 600, marginBottom: '16px' }}>💧 Irrigation System</h3>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: '12px' }}>
