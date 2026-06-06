@@ -219,7 +219,6 @@ export default function FieldMonitor() {
           } />
         <GaugeCard icon="💦" label="Humidity" value={f.humidity ?? 0} max={100} unit="%" color="#06b6d4"
           description="Relative humidity" />
-        <ToggleCard label="Relay" icon="🔌" isOn={relayOn} onToggle={() => setRelayOn(v => !v)} />
         <ToggleCard label="Motor" icon="⚙️" isOn={motorOn} onToggle={() => setMotorOn(v => !v)} />
       </div>
 
