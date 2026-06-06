@@ -142,6 +142,9 @@ export default function FieldMonitor() {
   // Parse Arduino serial lines:
   //   "Soil Moisture Value: 450"
   function parseLine(line) {
+    if (line.length === 0) return;
+    console.log('[Arduino Serial]', line);   // debug — browser console-ல பாரு
+    setSerialStatus(line);                   // screen-ல last line காட்டு
     if (line.startsWith('Soil Moisture Value:')) {
       const raw = parseInt(line.split(':')[1]);
       if (!isNaN(raw)) setArduinoSoil(raw);
@@ -171,10 +174,17 @@ export default function FieldMonitor() {
         </div>
 
         {/* Arduino USB Connect Button */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+          {serialConnected && (
+            <div style={{ fontSize: '0.75rem', color: '#94a3b8', maxWidth: '260px', 
+              background: '#0f172a', padding: '4px 10px', borderRadius: '6px',
+              border: '1px solid #334155', fontFamily: 'monospace' }}>
+              {serialStatus || 'Waiting for data...'}
+            </div>
+          )}
           {serialConnected && arduinoSoilPct !== null && (
             <span style={{ color: '#4ade80', fontSize: '0.78rem', fontWeight: 600 }}>
-              🌱 Arduino: {arduinoSoil} raw → {arduinoSoilPct}%
+              🌱 raw={arduinoSoil} → {arduinoSoilPct}%
             </span>
           )}
           <button
@@ -187,7 +197,7 @@ export default function FieldMonitor() {
               border: `1px solid ${serialConnected ? '#ef4444' : '#22c55e'}`
             }}
           >
-            {serialConnected ? '🔌 Disconnect Arduino' : '🔌 Connect Arduino USB'}
+            {serialConnected ? '🔌 Disconnect' : '🔌 Connect Arduino USB'}
           </button>
         </div>
       </div>
