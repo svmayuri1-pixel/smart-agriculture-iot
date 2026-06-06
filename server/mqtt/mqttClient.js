@@ -54,18 +54,23 @@ module.exports = function (io) {
         // ── Field sensors ──────────────────────────────────────────────
         if (topic === 'farm/sensors/field') {
           liveData.field = {
-            soilMoisture:  data.soilMoisture,
-            humidity:      data.humidity,
-            ph:            data.ph,
-            nitrogen:      data.nitrogen   || null,
-            phosphorus:    data.phosphorus || null,
-            potassium:     data.potassium  || null,
-            lightIntensity: data.lightIntensity || null,
-            lastUpdated:   new Date().toISOString(),
+            soilMoisture:   data.soilMoisture   ?? null,
+            humidity:       data.humidity       ?? null,
+            temperature:    data.temperature    ?? null,
+            ph:             data.ph             ?? null,
+            nitrogen:       data.nitrogen       ?? null,
+            phosphorus:     data.phosphorus     ?? null,
+            potassium:      data.potassium      ?? null,
+            lightIntensity: data.lightIntensity ?? null,
+            lastUpdated:    new Date().toISOString(),
           };
-          // ✅ Update real data store
           updateRealData('field', liveData.field);
-          io.emit('field_update', liveData.field);
+          // Emit both events so dashboard catches it either way
+          io.emit('field_update',  { ...liveData.field, isReal: true });
+          io.emit('sensor_update', {
+            timestamp: new Date().toISOString(),
+            field:     { ...liveData.field, isReal: true },
+          });
           console.log(`🌱 REAL Field: moisture=${data.soilMoisture}% humidity=${data.humidity}% temp=${data.temperature}°C`);
         }
 

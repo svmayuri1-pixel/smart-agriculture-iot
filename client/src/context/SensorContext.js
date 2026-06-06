@@ -39,10 +39,10 @@ export function SensorProvider({ children }) {
 
     // Full sensor update from server (broadcasted every 3s)
     socket.on('sensor_update', (data) => {
-      // Only show data if it's real (isReal flag from simulator)
-      if (data.field && data.field.isReal) {
+      // Accept if field data has soilMoisture (real sensor connected)
+      if (data.field && data.field.soilMoisture !== null && data.field.soilMoisture !== undefined) {
         setSensorOnline(true);
-        setSensorData(data);
+        setSensorData(prev => ({ ...prev, ...data, field: { ...data.field, isReal: true } }));
         setHistory(prev => [...prev.slice(-23), {
           time:         new Date(data.timestamp).toLocaleTimeString(),
           soilMoisture: data.field.soilMoisture,
