@@ -105,9 +105,6 @@ export default function FieldMonitor() {
           description={f.soilMoisture < 30 ? '⚠️ Needs irrigation' : f.soilMoisture > 70 ? '✓ Well watered' : '✓ Optimal'} />
         <GaugeCard icon="💦" label="Humidity"      value={f.humidity}      max={100} unit="%" color="#06b6d4"
           description="Relative humidity" />
-        <GaugeCard icon="☀️" label="Light"         value={f.lightIntensity} max={1200} unit="lux" color="#fbbf24"
-          description="Solar radiation" />
-
         <ToggleCard label="Relay"  icon="🔌" isOn={relayOn} onToggle={() => setRelayOn(v => !v)} />
         <ToggleCard label="Motor"  icon="⚙️" isOn={motorOn} onToggle={() => setMotorOn(v => !v)} />
       </div>
