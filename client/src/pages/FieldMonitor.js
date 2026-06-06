@@ -77,14 +77,84 @@ export default function FieldMonitor() {
   const { sensorData, history } = useSensor();
   const f = sensorData.field;
 
-  // Local ON/OFF state for Relay and Motor
-  const soilMoisture = f.soilMoisture;
-  const autoRelayOn  = soilMoisture !== null && soilMoisture < 30;
+  // ── Web Serial state ──────────────────────────────────────
+  const [serialConnected, setSerialConnected] = useState(false);
+  const [arduinoSoil, setArduinoSoil]         = useState(null);   // raw ADC
+  const [serialStatus, setSerialStatus]        = useState('');
+  const readerRef = React.useRef(null);
+  const portRef   = React.useRef(null);
 
+  // Soil moisture % from Arduino raw (0–1023, dry > 580)
+  const arduinoSoilPct = arduinoSoil !== null
+    ? Math.round(constrain(map(arduinoSoil, 1023, 0, 0, 100), 0, 100))
+    : null;
+
+  function map(x, inMin, inMax, outMin, outMax) {
+    return ((x - inMin) * (outMax - outMin)) / (inMax - inMin) + outMin;
+  }
+  function constrain(x, lo, hi) { return Math.min(Math.max(x, lo), hi); }
+
+  // Connect to Arduino via Web Serial API
+  async function connectSerial() {
+    if (!('serial' in navigator)) {
+      alert('Web Serial API not supported!\nUse Chrome or Edge browser.');
+      return;
+    }
+    try {
+      const port = await navigator.serial.requestPort();
+      await port.open({ baudRate: 9600 });
+      portRef.current = port;
+      setSerialConnected(true);
+      setSerialStatus('Connected ✅');
+
+      const decoder = new TextDecoderStream();
+      port.readable.pipeTo(decoder.writable);
+      const reader = decoder.readable.getReader();
+      readerRef.current = reader;
+
+      let buffer = '';
+      while (true) {
+        const { value, done } = await reader.read();
+        if (done) break;
+        buffer += value;
+        const lines = buffer.split('\n');
+        buffer = lines.pop();
+        for (const line of lines) {
+          parseLine(line.trim());
+        }
+      }
+    } catch (e) {
+      setSerialStatus('Disconnected');
+      setSerialConnected(false);
+    }
+  }
+
+  async function disconnectSerial() {
+    try {
+      if (readerRef.current) await readerRef.current.cancel();
+      if (portRef.current) await portRef.current.close();
+    } catch (_) {}
+    setSerialConnected(false);
+    setSerialStatus('Disconnected');
+    setArduinoSoil(null);
+  }
+
+  // Parse Arduino serial lines:
+  //   "Soil Moisture Value: 450"
+  function parseLine(line) {
+    if (line.startsWith('Soil Moisture Value:')) {
+      const raw = parseInt(line.split(':')[1]);
+      if (!isNaN(raw)) setArduinoSoil(raw);
+    }
+  }
+
+  // Use Arduino value if connected, else fall back to MQTT sensor
+  const soilMoisture = arduinoSoilPct !== null ? arduinoSoilPct : f.soilMoisture;
+
+  // Relay / Motor auto based on soil
   const [relayOn, setRelayOn] = useState(false);
   const [motorOn, setMotorOn] = useState(false);
 
-  // Auto-sync relay with soil moisture
   React.useEffect(() => {
     if (soilMoisture !== null) {
       setRelayOn(soilMoisture < 30);
@@ -94,9 +164,32 @@ export default function FieldMonitor() {
 
   return (
     <div className="fade-in">
-      <div style={{ marginBottom: '24px' }}>
-        <h1 style={{ color: '#f1f5f9', fontSize: '1.4rem', fontWeight: 700 }}>🌾 Field Monitor</h1>
-        <p style={{ color: '#64748b', fontSize: '0.85rem', marginTop: '4px' }}>Real-time soil and environmental data</p>
+      <div style={{ marginBottom: '16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '10px' }}>
+        <div>
+          <h1 style={{ color: '#f1f5f9', fontSize: '1.4rem', fontWeight: 700 }}>🌾 Field Monitor</h1>
+          <p style={{ color: '#64748b', fontSize: '0.85rem', marginTop: '4px' }}>Real-time soil and environmental data</p>
+        </div>
+
+        {/* Arduino USB Connect Button */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+          {serialConnected && arduinoSoilPct !== null && (
+            <span style={{ color: '#4ade80', fontSize: '0.78rem', fontWeight: 600 }}>
+              🌱 Arduino: {arduinoSoil} raw → {arduinoSoilPct}%
+            </span>
+          )}
+          <button
+            onClick={serialConnected ? disconnectSerial : connectSerial}
+            style={{
+              padding: '8px 16px', borderRadius: '8px', border: 'none', cursor: 'pointer',
+              fontWeight: 700, fontSize: '0.8rem',
+              background: serialConnected ? 'rgba(239,68,68,0.15)' : 'rgba(34,197,94,0.15)',
+              color: serialConnected ? '#f87171' : '#4ade80',
+              border: `1px solid ${serialConnected ? '#ef4444' : '#22c55e'}`
+            }}
+          >
+            {serialConnected ? '🔌 Disconnect Arduino' : '🔌 Connect Arduino USB'}
+          </button>
+        </div>
       </div>
 
       {/* 5 cards — Soil Moisture, Humidity, Light, Relay, Motor */}
