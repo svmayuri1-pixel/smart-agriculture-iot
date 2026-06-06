@@ -141,29 +141,33 @@ export default function FieldMonitor() {
 
   // Parse Arduino serial lines:
   //   "Soil Moisture Value: 450"
+  //   "SOIL DRY - MOTOR ON"
+  //   "SOIL WET - MOTOR OFF"
   function parseLine(line) {
     if (line.length === 0) return;
-    console.log('[Arduino Serial]', line);   // debug — browser console-ல பாரு
-    setSerialStatus(line);                   // screen-ல last line காட்டு
+    console.log('[Arduino Serial]', line);
+    setSerialStatus(line);
+
+    // Soil raw value
     if (line.startsWith('Soil Moisture Value:')) {
       const raw = parseInt(line.split(':')[1]);
       if (!isNaN(raw)) setArduinoSoil(raw);
     }
+    // Motor ON → relay + motor both ON
+    else if (line.indexOf('MOTOR ON') >= 0) {
+      setRelayOn(true);
+      setMotorOn(true);
+    }
+    // Motor OFF → relay + motor both OFF
+    else if (line.indexOf('MOTOR OFF') >= 0) {
+      setRelayOn(false);
+      setMotorOn(false);
+    }
   }
 
-  // Use Arduino value if connected, else fall back to MQTT sensor
-  const soilMoisture = arduinoSoilPct !== null ? arduinoSoilPct : f.soilMoisture;
-
-  // Relay / Motor auto based on soil
+  // Relay / Motor state — driven by Arduino serial
   const [relayOn, setRelayOn] = useState(false);
   const [motorOn, setMotorOn] = useState(false);
-
-  React.useEffect(() => {
-    if (soilMoisture !== null) {
-      setRelayOn(soilMoisture < 30);
-      setMotorOn(soilMoisture < 30);
-    }
-  }, [soilMoisture]);
 
   return (
     <div className="fade-in">
@@ -202,14 +206,21 @@ export default function FieldMonitor() {
         </div>
       </div>
 
-      {/* 5 cards — Soil Moisture, Humidity, Light, Relay, Motor */}
+      {/* 4 cards — Soil Moisture, Humidity, Relay, Motor */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(155px, 1fr))', gap: '14px', marginBottom: '24px' }}>
-        <GaugeCard icon="💧" label="Soil Moisture" value={f.soilMoisture} max={100} unit="%" color="#3b82f6"
-          description={f.soilMoisture < 30 ? '⚠️ Needs irrigation' : f.soilMoisture > 70 ? '✓ Well watered' : '✓ Optimal'} />
-        <GaugeCard icon="💦" label="Humidity"      value={f.humidity}      max={100} unit="%" color="#06b6d4"
+        <GaugeCard icon="💧" label="Soil Moisture"
+          value={arduinoSoilPct !== null ? arduinoSoilPct : (f.soilMoisture ?? 0)}
+          max={100} unit="%" color="#3b82f6"
+          description={
+            (arduinoSoilPct !== null ? arduinoSoilPct : f.soilMoisture) < 30
+              ? '⚠️ Needs irrigation'
+              : (arduinoSoilPct !== null ? arduinoSoilPct : f.soilMoisture) > 70
+                ? '✓ Well watered' : '✓ Optimal'
+          } />
+        <GaugeCard icon="💦" label="Humidity" value={f.humidity ?? 0} max={100} unit="%" color="#06b6d4"
           description="Relative humidity" />
-        <ToggleCard label="Relay"  icon="🔌" isOn={relayOn} onToggle={() => setRelayOn(v => !v)} />
-        <ToggleCard label="Motor"  icon="⚙️" isOn={motorOn} onToggle={() => setMotorOn(v => !v)} />
+        <ToggleCard label="Relay" icon="🔌" isOn={relayOn} onToggle={() => setRelayOn(v => !v)} />
+        <ToggleCard label="Motor" icon="⚙️" isOn={motorOn} onToggle={() => setMotorOn(v => !v)} />
       </div>
 
       {/* Chart */}
